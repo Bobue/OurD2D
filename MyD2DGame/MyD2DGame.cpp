@@ -1,0 +1,46 @@
+﻿#include <Windows.h>
+#include "GameWindow.h"
+
+int WINAPI wWinMain(
+	HINSTANCE hInstance,
+	HINSTANCE,
+	PWSTR,
+	int nCmdShow
+)
+{
+	GameWindow window1;
+	GameWindow window2;
+	GameWindow window3;
+	GameWindow window4;
+
+	if (!window1.Create(hInstance, L"Player Field", 0, 540, 1920, 540))
+	{
+		return 0;
+	}
+	if (!window2.Create(hInstance, L"Enemy Field", 0, 0, 1920, 540))
+	{
+		return 0;
+	}
+	if (!window3.Create(hInstance, L"Player Local", 780, 600, 400, 400))
+	{
+		return 0;
+	}
+	if (!window4.Create(hInstance, L"Enemy Local", 780, 50, 400, 400))
+	{
+		return 0;
+	}
+
+	window1.Show(nCmdShow);
+	window2.Show(nCmdShow);
+	window3.Show(nCmdShow);
+	window4.Show(nCmdShow);
+
+	MSG msg = {};
+	while (GetMessage(&msg, nullptr, 0, 0))
+	{
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
+	}
+
+	return 0;
+}
