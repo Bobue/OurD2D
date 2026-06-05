@@ -43,7 +43,7 @@ bool GameWindow::Create(
 
 	m_hwnd = CreateWindowEx(
 		0, className, title,
-		WS_OVERLAPPEDWINDOW,
+		WS_POPUP | WS_BORDER | WS_DLGFRAME,
 		x,y,
 		width, height,
 		nullptr, nullptr,
@@ -64,12 +64,7 @@ HWND GameWindow::GetHwnd() const
 	return m_hwnd;
 }
 
-LRESULT CALLBACK GameWindow::StaticWndProc(
-	HWND hwnd,
-	UINT msg,
-	WPARAM wParam,
-	LPARAM lParam
-)
+LRESULT CALLBACK GameWindow::StaticWndProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam)
 {
 	GameWindow* window = nullptr;
 
@@ -96,12 +91,7 @@ LRESULT CALLBACK GameWindow::StaticWndProc(
 	return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-LRESULT GameWindow::WndProc(
-	HWND hwnd,
-	UINT msg,
-	WPARAM wParam,
-	LPARAM lParam
-)
+LRESULT GameWindow::WndProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam)
 {
 	switch (msg)
 	{
@@ -111,4 +101,37 @@ LRESULT GameWindow::WndProc(
 	}
 
 	return DefWindowProc(hwnd, msg, wParam, lParam);
+}
+
+void GameWindow::ResizeWindowToMonitorRatio(HWND hwnd, double widthRatio, double heightRatio, double XRatio, double YRatio, bool flag)
+{
+	HMONITOR hMonitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+
+	MONITORINFO mi = {};
+	mi.cbSize = sizeof(MONITORINFO);
+
+	if (!GetMonitorInfo(hMonitor, &mi)) return;
+
+
+	RECT work = mi.rcWork; //툴바 작업 표시줄 등등 제외한 영역
+
+	//모니터 (작업공간의 너비 높이) 구하기
+	int workWidth  = work.right  - work.left;
+	int workHeight = work.bottom - work.top ;
+
+	//모니터 작업공간의 (창의 너비, 높이) 구하기
+	int targetWidth = static_cast<int>(workWidth * widthRatio);
+	int targetHeight = static_cast<int>(workHeight * heightRatio);
+
+
+	int locationWidth = static_cast<int>(workWidth * XRatio);
+	int locationHeigh = static_cast<int>(workHeight * YRatio);
+
+	if (flag ==false)
+	{
+		locationWidth -= targetWidth / 2;
+		locationHeigh -= targetHeight / 2;
+	}
+
+	SetWindowPos(hwnd, nullptr, locationWidth, locationHeigh, targetWidth, targetHeight, SWP_NOZORDER | SWP_NOACTIVATE);
 }

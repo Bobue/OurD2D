@@ -15,25 +15,17 @@ public:
 	);
 
 	void Show(int nCmdShow);
-
 	HWND GetHwnd() const;
 
+	void ResizeWindowToMonitorRatio(HWND hwnd, double widthRatio, double heightRaio, double XRatio, double YRatio, bool flag);
 private:
 	HWND m_hwnd;
 	HINSTANCE m_hInstance;
 
 private:
-	static LRESULT CALLBACK StaticWndProc(
-											HWND   hwnd,
-											UINT   msg,
-											WPARAM wParam,
-											LPARAM IParam
-										  );
+	static LRESULT CALLBACK StaticWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM IParam);
+		   LRESULT			WndProc		 (HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-	LRESULT WndProc(
-					HWND   hwnd,
-					UINT   msg,
-					WPARAM wParam,
-					LPARAM lParam
-					);
+
+	
 };

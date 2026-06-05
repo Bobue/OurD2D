@@ -8,6 +8,7 @@ int WINAPI wWinMain(
 	int nCmdShow
 )
 {
+	
 	GameWindow window1;
 	GameWindow window2;
 	GameWindow window3;
@@ -34,6 +35,11 @@ int WINAPI wWinMain(
 	window2.Show(nCmdShow);
 	window3.Show(nCmdShow);
 	window4.Show(nCmdShow);
+	
+	window1.ResizeWindowToMonitorRatio(window1.GetHwnd(), 1, 0.5, 0, 0.5, true);
+	window2.ResizeWindowToMonitorRatio(window2.GetHwnd(), 1, 0.5, 0, 0, true);
+	window3.ResizeWindowToMonitorRatio(window3.GetHwnd(), 0.2, 0.2, 0.5, 0.75, false);
+	window4.ResizeWindowToMonitorRatio(window4.GetHwnd(), 0.2, 0.2, 0.5, 0.25, false);
 
 	MSG msg = {};
 	while (GetMessage(&msg, nullptr, 0, 0))
