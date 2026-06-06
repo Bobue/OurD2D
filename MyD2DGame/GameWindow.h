@@ -1,6 +1,8 @@
 #pragma once
 #include <Windows.h>
 
+
+
 class GameWindow
 {
 public:
@@ -8,10 +10,10 @@ public:
 	~GameWindow();
 
 	bool Create(
-		HINSTANCE hInstance,  // Ã¢ÀÇ ÇÚµé
-		const wchar_t* title, // Ã¢ÀÇ ÀÌ¸§
-		int x    , int y    , // Ã¢ÀÇ ÁÂÇ¥
-		int width, int height // Ã¢ÀÇ Å©±â
+		HINSTANCE hInstance,  // ì°½ì˜ í•¸ë“¤
+		const wchar_t* title, // ì°½ì˜ ì´ë¦„
+		int x    , int y    , // ì°½ì˜ ì¢Œí‘œ
+		int width, int height // ì°½ì˜ í¬ê¸°
 	);
 
 	void Show(int nCmdShow);
