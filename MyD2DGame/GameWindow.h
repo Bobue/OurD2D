@@ -17,7 +17,6 @@ struct WindowCreateInfo
 
 
 
-
 class GameWindow
 {
 public:

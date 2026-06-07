@@ -28,8 +28,11 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 	auto& input = engine.GetInputManager();
 	auto& windows = engine.GetWindowManager();
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> 2fe790813194fceead97942d5e483271805ec5e0
 	if (input.IsKeyPressed(mainWindowId, VK_LEFT))
 	{
 		int mainWindow = windows.CreateGameWindow(
