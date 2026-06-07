@@ -28,7 +28,7 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 	auto& input = engine.GetInputManager();
 	auto& windows = engine.GetWindowManager();
 
-	if (input.IsKeyDown(mainWindowId, VK_LEFT))
+	if (input.IsKeyPressed(mainWindowId, VK_LEFT))
 	{
 		int mainWindow = windows.CreateGameWindow(
 			{

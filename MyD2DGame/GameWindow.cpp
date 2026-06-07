@@ -70,28 +70,44 @@ int GameWindow::GetID() const
 
 LRESULT GameWindow::HandleMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-	if (inputManager != nullptr)
+	if (m_hwnd == nullptr)
 	{
-		switch (message)
-		{
-		case WM_SETFOCUS:
-			inputManager->SetFocusedWindowId(id);
-			return 0;
-		case WM_KEYDOWN:
-			inputManager->SetKeyDown(id, static_cast<int>(wParam), true);
-			return 0;
-		case WM_KEYUP:
-			inputManager->SetKeyDown(id, static_cast<int>(wParam), false);
-			return 0;
-		case WM_DESTROY:
-			PostQuitMessage(0);
-			return 0;
-
-		default:
-			return DefWindowProcW(m_hwnd, message, wParam, lParam);
-		}
+		m_hwnd = hwnd;
 	}
 
+	switch (message)
+	{
+	case WM_NCCREATE:
+		return TRUE;
+
+	case WM_SETFOCUS:
+		if (inputManager != nullptr)
+		{
+			inputManager->SetFocusedWindowId(id);
+		}
+		return 0;
+
+	case WM_KEYDOWN:
+		if (inputManager != nullptr)
+		{
+			inputManager->SetKeyDown(id, static_cast<int>(wParam), true);
+		}
+		return 0;
+
+	case WM_KEYUP:
+		if (inputManager != nullptr)
+		{
+			inputManager->SetKeyDown(id, static_cast<int>(wParam), false);
+		}
+		return 0;
+
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		return 0;
+
+	default:
+		return DefWindowProcW(hwnd, message, wParam, lParam);
+	}
 }
 
 //LRESULT CALLBACK GameWindow::StaticWndProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam)

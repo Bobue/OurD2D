@@ -12,19 +12,18 @@ void InputManager::SetKeyDown(int windowId, int keyCode, bool isDown)
 
 bool InputManager::IsKeyDown(int windowId, int keyCode) const
 {
-	if (windowId < 0 || !IsValidKeyCode(keyCode))
-	{
-		return false;
-	}
+	return GetKeyState(keyStateByWindow, windowId, keyCode);
+}
 
-	auto iter = keyStateByWindow.find(windowId);
-	if (iter == keyStateByWindow.end())
-	{
-		return false;
-	}
+bool InputManager::IsKeyPressed(int windowId, int keyCode) const
+{
+	return GetKeyState(keyStateByWindow, windowId, keyCode) &&
+		!GetKeyState(previousKeyStateByWindow, windowId, keyCode);
+}
 
-	return iter->second[keyCode];
-
+void InputManager::EndFrame()
+{
+	previousKeyStateByWindow = keyStateByWindow;
 }
 
 void InputManager::SetFocusedWindowId(int windowId)
@@ -40,4 +39,24 @@ int InputManager::GetFocusedWindowId() const
 bool InputManager::IsValidKeyCode(int keyCode) const
 {
 	return keyCode >= 0 && keyCode < 256;
+}
+
+bool InputManager::GetKeyState(
+	const std::unordered_map<int, std::array<bool, 256>>& states,
+	int windowId,
+	int keyCode
+) const
+{
+	if (windowId < 0 || !IsValidKeyCode(keyCode))
+	{
+		return false;
+	}
+
+	auto iter = states.find(windowId);
+	if (iter == states.end())
+	{
+		return false;
+	}
+
+	return iter->second[keyCode];
 }

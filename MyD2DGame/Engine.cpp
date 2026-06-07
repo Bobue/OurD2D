@@ -50,6 +50,8 @@ void Engine::Run()
 
 		Update(deltaTime);
 		Render();
+
+		inputManager.EndFrame();
 	}
 }
 void Engine::Update(float deltaTime)
