@@ -1,137 +1,172 @@
-#include "GameWindow.h"
+Ôªø#include "GameWindow.h"
+#include "InputManager.h"
 
-GameWindow::GameWindow() :m_hwnd(nullptr), m_hInstance(nullptr)
-{
-
-}
-
-GameWindow::~GameWindow()
-{
-
-}
 
 bool GameWindow::Create(
 						HINSTANCE hInstance,
 						const wchar_t* title,
-						int x,     int y,
-						int width, int height
+						int	id,
+						const WindowCreateInfo& info,
+						InputManager* inputManager
 )
 {
-	m_hInstance = hInstance;
+	this->m_hInstance = hInstance;
+	this->id = id;
+	this->inputManager = inputManager;
 
-	const wchar_t* className = L"GameWindowClass";
+	//const wchar_t* className = L"GameWindowClass";
 
-	WNDCLASSEX wc = {};
-	wc.cbSize = sizeof(WNDCLASSEX);
-	wc.lpfnWndProc = GameWindow::StaticWndProc;
-	wc.hInstance = hInstance;
-	wc.lpszClassName = className;
-	wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
-	wc.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
+	//WNDCLASSEX wc = {};
+	//wc.cbSize = sizeof(WNDCLASSEX);
+	//wc.lpfnWndProc = GameWindow::StaticWndProc;
+	//wc.hInstance = hInstance;
+	//wc.lpszClassName = className;
+	//wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
+	//wc.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
 
-	static bool registered = false;
+	//static bool registered = false;
 
-	if (!registered)
-	{
-		if (!RegisterClassEx(&wc))
-		{
-			return false;
-		}
+	//if (!registered)
+	//{
+	//	if (!RegisterClassEx(&wc))
+	//	{
+	//		return false;
+	//	}
 
-		registered = true;
-	}
+	//	registered = true;
+	//}
 
 	m_hwnd = CreateWindowEx(
-		0, className, title,
+		0,  title,info.title.c_str(),
 		WS_POPUP | WS_BORDER | WS_DLGFRAME,
-		x,y,
-		width, height,
+		info.x, info.y,
+		info.width, info.height,
 		nullptr, nullptr,
 		hInstance, this
 	);
-
-	return m_hwnd != nullptr;
-}
-
-void GameWindow::Show(int nCmdShow)
-{
-	ShowWindow(m_hwnd, nCmdShow);
+	if (m_hwnd == nullptr) return false;
+	
+	ShowWindow(m_hwnd, SW_SHOW);
 	UpdateWindow(m_hwnd);
+
+	return true;
 }
+
+//void GameWindow::Show(int nCmdShow)
+//{
+//	ShowWindow(m_hwnd, nCmdShow);
+//	UpdateWindow(m_hwnd);
+//}
 
 HWND GameWindow::GetHwnd() const
 {
 	return m_hwnd;
 }
 
-LRESULT CALLBACK GameWindow::StaticWndProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam)
+int GameWindow::GetID() const
 {
-	GameWindow* window = nullptr;
-
-	if (msg == WM_NCCREATE)
-	{
-		CREATESTRUCT* createStruct = reinterpret_cast<CREATESTRUCT*>(lParam);
-
-		window = reinterpret_cast<GameWindow*>(createStruct->lpCreateParams);
-
-		SetWindowLongPtr(
-			hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(window)
-		);
-	}
-	else
-	{
-		window = reinterpret_cast<GameWindow*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
-	}
-
-	if (window)
-	{
-		return window->WndProc(hwnd, msg, wParam, lParam);
-	}
-
-	return DefWindowProc(hwnd, msg, wParam, lParam);
+	return id;
 }
 
-LRESULT GameWindow::WndProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam)
+LRESULT GameWindow::HandleMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-	switch (msg)
+	if (m_hwnd == nullptr)
 	{
+		m_hwnd = hwnd;
+	}
+
+	switch (message)
+	{
+	case WM_NCCREATE:
+		return TRUE;
+
+	case WM_SETFOCUS:
+		if (inputManager != nullptr)
+		{
+			inputManager->SetFocusedWindowId(id);
+		}
+		return 0;
+
+	case WM_KEYDOWN:
+		if (inputManager != nullptr)
+		{
+			inputManager->SetKeyDown(id, static_cast<int>(wParam), true);
+		}
+		return 0;
+
+	case WM_KEYUP:
+		if (inputManager != nullptr)
+		{
+			inputManager->SetKeyDown(id, static_cast<int>(wParam), false);
+		}
+		return 0;
+
 	case WM_DESTROY:
 		PostQuitMessage(0);
 		return 0;
-	}
 
-	return DefWindowProc(hwnd, msg, wParam, lParam);
+	default:
+		return DefWindowProcW(hwnd, message, wParam, lParam);
+	}
 }
 
-void GameWindow::ResizeWindowToMonitorRatio(HWND hwnd, double widthRatio, double heightRatio, double XRatio, double YRatio, bool flag)
-{
-	HMONITOR hMonitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+//LRESULT CALLBACK GameWindow::StaticWndProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam)
+//{
+//	GameWindow* window = nullptr;
+//
+//	if (msg == WM_NCCREATE)
+//	{
+//		CREATESTRUCT* createStruct = reinterpret_cast<CREATESTRUCT*>(lParam);
+//
+//		window = reinterpret_cast<GameWindow*>(createStruct->lpCreateParams);
+//
+//		SetWindowLongPtr(
+//			hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(window)
+//		);
+//	}
+//	else
+//	{
+//		window = reinterpret_cast<GameWindow*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
+//	}
+//
+//	if (window)
+//	{
+//		return window->WndProc(hwnd, msg, wParam, lParam);
+//	}
+//
+//	return DefWindowProc(hwnd, msg, wParam, lParam);
+//}
 
-	MONITORINFO mi = {};
-	mi.cbSize = sizeof(MONITORINFO);
 
-	if (!GetMonitorInfo(hMonitor, &mi)) return;
-
-
-	RECT work = mi.rcWork; //≈¯πŸ ¿€æ˜ «•Ω√¡Ÿ µÓµÓ ¡¶ø‹«— øµø™
-
-	//∏¥œ≈Õ (¿€æ˜∞¯∞£¿« ≥ ∫Ò ≥Ù¿Ã) ±∏«œ±‚
-	int workWidth  = work.right  - work.left;
-	int workHeight = work.bottom - work.top ;
-
-	//∏¥œ≈Õ ¿€æ˜∞¯∞£¿« (√¢¿« ≥ ∫Ò, ≥Ù¿Ã) ±∏«œ±‚
-	int targetWidth = static_cast<int>(workWidth * widthRatio);
-	int targetHeight = static_cast<int>(workHeight * heightRatio);
-
-
-	int locationWidth = static_cast<int>(workWidth * XRatio);
-	int locationHeigh = static_cast<int>(workHeight * YRatio);
-
-	if (flag ==false)
-	{
-		locationWidth -= targetWidth / 2;
-		locationHeigh -= targetHeight / 2;
-	}
-
-	SetWindowPos(hwnd, nullptr, locationWidth, locationHeigh, targetWidth, targetHeight, SWP_NOZORDER | SWP_NOACTIVATE);
-}
+//void GameWindow::ResizeWindowToMonitorRatio(HWND hwnd, double widthRatio, double heightRatio, double XRatio, double YRatio, bool flag)
+//{
+//	HMONITOR hMonitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+//
+//	MONITORINFO mi = {};
+//	mi.cbSize = sizeof(MONITORINFO);
+//
+//	if (!GetMonitorInfo(hMonitor, &mi)) return;
+//
+//
+//	RECT work = mi.rcWork; //Ìà¥Î∞î ÏûëÏóÖ ÌëúÏãúÏ§Ñ Îì±Îì± Ï†úÏô∏Ìïú ÏòÅÏó≠
+//
+//	//Î™®ÎãàÌÑ∞ (ÏûëÏóÖÍ≥µÍ∞ÑÏùò ÎÑàÎπÑ ÎÜíÏù¥) Íµ¨ÌïòÍ∏∞
+//	int workWidth  = work.right  - work.left;
+//	int workHeight = work.bottom - work.top ;
+//
+//	//Î™®ÎãàÌÑ∞ ÏûëÏóÖÍ≥µÍ∞ÑÏùò (Ï∞ΩÏùò ÎÑàÎπÑ, ÎÜíÏù¥) Íµ¨ÌïòÍ∏∞
+//	int targetWidth = static_cast<int>(workWidth * widthRatio);
+//	int targetHeight = static_cast<int>(workHeight * heightRatio);
+//
+//
+//	int locationWidth = static_cast<int>(workWidth * XRatio);
+//	int locationHeigh = static_cast<int>(workHeight * YRatio);
+//
+//	if (flag ==false)
+//	{
+//		locationWidth -= targetWidth / 2;
+//		locationHeigh -= targetHeight / 2;
+//	}
+//
+//	SetWindowPos(hwnd, nullptr, locationWidth, locationHeigh, targetWidth, targetHeight, SWP_NOZORDER | SWP_NOACTIVATE);
+//}
