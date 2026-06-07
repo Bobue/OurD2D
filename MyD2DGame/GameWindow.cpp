@@ -15,6 +15,8 @@ bool GameWindow::Create(
 	this->inputManager = inputManager;
 	this->x = info.x;
 	this->y = info.y;
+	this->width = info.width;
+	this->height = info.height;
 
 	m_hwnd = CreateWindowEx(
 							0,  title,info.title.c_str(),
@@ -27,7 +29,7 @@ bool GameWindow::Create(
 	
 	if (m_hwnd == nullptr) return false;
 	
-	ShowWindow(m_hwnd, SW_SHOW);
+	ShowWindow(m_hwnd, SW_SHOWNOACTIVATE);//생성된 창에 포커싱 안 뺏기게
 	UpdateWindow(m_hwnd);
 
 	return true;
@@ -82,6 +84,14 @@ LRESULT GameWindow::HandleMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM
 		}
 		return 0;
 
+	case WM_MOVE:
+		if (!isMovingByCode)
+		{
+			UpdateRect();
+		}
+		
+		return 0;
+
 	case WM_DESTROY:
 		PostQuitMessage(0);
 		return 0;
@@ -95,20 +105,36 @@ void GameWindow::SetPosition(float x, float y)
 {
 
 }
-void GameWindow::MoveWindow(float dx, float dy)
+void GameWindow::MoveWindow(float XRatio, float YRatio, float deltaTime)
 {
-	x += dx;
-	y += dy;
 
-	SetWindowPos(
-		m_hwnd, nullptr,
-		static_cast<int>(x),
-		static_cast<int>(y),
-		0, 0,
-		SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE
-	);
+	HMONITOR hMonitor = MonitorFromWindow(m_hwnd, MONITOR_DEFAULTTONEAREST);
+
+	MONITORINFO mi = {};
+	mi.cbSize = sizeof(MONITORINFO);
+
+	if (!GetMonitorInfo(hMonitor, &mi)) return;
+
+
+	RECT work = mi.rcWork; //툴바 작업 표시줄 등등 제외한 영역
+
+	//모니터 (작업공간의 너비 높이) 구하기
+	int workWidth = work.right - work.left;
+	int workHeight = work.bottom - work.top;
+
+
+
+
+	float locationWidth =(workWidth * XRatio);// - width / 2;
+	float locationHeight =(workHeight * YRatio);// - height / 2;
+	x += locationWidth * deltaTime;
+	y += locationHeight* deltaTime;
+
+	isMovingByCode = true;
+	SetWindowPos(m_hwnd, nullptr, static_cast<int>(x), static_cast<int>(y), 0, 0, SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSIZE);
+	isMovingByCode = false;
 }
-void GameWindow::ResizeWindowToMonitorRatio(HWND hwnd, double widthRatio, double heightRatio, double XRatio, double YRatio, bool flag)
+void GameWindow::ResizeWindowToMonitorRatio(HWND hwnd, double widthRatio, double heightRatio, double XRatio, double YRatio)
 {
 	HMONITOR hMonitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
 
@@ -129,42 +155,20 @@ void GameWindow::ResizeWindowToMonitorRatio(HWND hwnd, double widthRatio, double
 	int targetHeight = static_cast<int>(workHeight * heightRatio);
 
 
-	int locationWidth = static_cast<int>(workWidth * XRatio);
-	int locationHeigh = static_cast<int>(workHeight * YRatio);
-
-	if (flag ==false)
-	{
-		locationWidth -= targetWidth / 2;
-		locationHeigh -= targetHeight / 2;
-	}
+	int locationWidth = static_cast<int>(workWidth * XRatio) - targetWidth / 2;
+	int locationHeigh = static_cast<int>(workHeight * YRatio) - targetHeight / 2;
+	
 
 	SetWindowPos(hwnd, nullptr, locationWidth, locationHeigh, targetWidth, targetHeight, SWP_NOZORDER | SWP_NOACTIVATE);
 }
-//LRESULT CALLBACK GameWindow::StaticWndProc(HWND hwnd,UINT msg,WPARAM wParam,LPARAM lParam)
-//{
-//	GameWindow* window = nullptr;
-//
-//	if (msg == WM_NCCREATE)
-//	{
-//		CREATESTRUCT* createStruct = reinterpret_cast<CREATESTRUCT*>(lParam);
-//
-//		window = reinterpret_cast<GameWindow*>(createStruct->lpCreateParams);
-//
-//		SetWindowLongPtr(
-//			hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(window)
-//		);
-//	}
-//	else
-//	{
-//		window = reinterpret_cast<GameWindow*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
-//	}
-//
-//	if (window)
-//	{
-//		return window->WndProc(hwnd, msg, wParam, lParam);
-//	}
-//
-//	return DefWindowProc(hwnd, msg, wParam, lParam);
-//}
 
+void GameWindow::UpdateRect()
+{
+	RECT rect = {};
 
+	if (GetWindowRect(m_hwnd, &rect))
+	{
+		x = rect.left;
+		y = rect.top;
+	}
+}

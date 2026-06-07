@@ -17,8 +17,8 @@ struct WindowCreateInfo
 
 	std::wstring title = L"Default Window";
 
-	int x	   = 100; //x좌표
-	int y	   = 100; //y좌표
+	float x	   = 100; //x좌표
+	float y	   = 100; //y좌표
 	int width  = 800; //높이
 	int height = 600; //너비
 
@@ -65,12 +65,13 @@ public:
 	);
 	HWND GetHwnd() const;
 	int  GetID()   const;
+	void UpdateRect();
 
 	LRESULT HandleMessage(HWND hwnd,UINT message, WPARAM wParam, LPARAM lParam);
 
 	void SetPosition(float x , float y );
-	void MoveWindow	(float dx, float dy);
-	void ResizeWindowToMonitorRatio(HWND hwnd, double widthRatio, double heightRaio, double XRatio, double YRatio, bool flag);
+	void MoveWindow	(float XRatio, float YRatio, float deltaTime);
+	void ResizeWindowToMonitorRatio(HWND hwnd, double widthRatio, double heightRaio, double XRatio, double YRatio);
 
 
 private:
@@ -79,10 +80,12 @@ private:
 
 
 	int id = -1;
-	float x = 0.0f;//현재창의 X좌표
-	float y = 0.0f;//현재창의 Y좌표
+	float x = 0;//현재창의 X좌표
+	float y = 0;//현재창의 Y좌표
+	int width = 0;
+	int height = 0;
 
-
+	bool isMovingByCode = false;
 	InputManager* inputManager = nullptr;
 
 //
