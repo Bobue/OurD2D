@@ -36,6 +36,8 @@ void GameContent::OnStart(EngineContext& engine)
 	int Enemyregion = windows.CreateGameWindow( // 적 지역
 		{
 			L"Main Window",
+			0.5, 0.2,
+			0.1, 0.15
 		}
 	);
 
