@@ -27,7 +27,8 @@ void GameContent::OnStart(EngineContext& engine)
 		{
 			L"Main Window",
 			0.5, 0.5,
-			0.5, 0.5
+			0.5, 0.5,
+			true
 		}
 	);
 
@@ -88,7 +89,8 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 			{
 				L"Add Window",
 				a, b,
-				0.2, 0.2
+				0.2, 0.2,
+				false
 			}
 		);
 		
@@ -108,9 +110,34 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 				a = 0.3f;
 				b = 0.3f;
 			}
-			
-		
+	}
+	if (input.IsKeyPressed(mainWindowId, VK_TAB))
+	{
+		int subWindow = windows.CreateGameWindow(
+			{
+				L"Add Window",
+				a+0.3f, b,
+				0.2, 0.2,
+				true
+			}
+		);
 
+		a += 0.01; b += 0.01;
+		HMONITOR hMonitor = MonitorFromPoint({ 0,0 }, MONITOR_DEFAULTTONEAREST);
+
+		MONITORINFO mi = {};
+		mi.cbSize = sizeof(MONITORINFO);
+
+		if (!GetMonitorInfo(hMonitor, &mi)) return;
+
+
+		RECT work = mi.rcWork; //툴바 작업 표시줄 등등 제외한 영역
+
+		if (work.bottom < b)
+		{
+			a = 0.3f;
+			b = 0.3f;
+		}
 	}
 	if (input.IsKeyDown(mainWindowId, VK_RIGHT))
 	{
