@@ -1,60 +1,25 @@
 ﻿#include "GameContent.h"
-
 #include "EngineContext.h"
 #include "WindowManager.h"
-#include "InputManager.h"
 
 #include <Windows.h>
 
 void GameContent::OnStart(EngineContext& engine)
 {
-	auto& windows = engine.GetWindowManager();
+	player.Initalize(engine);
+	enemy.Initalize(engine);
 
-	int mainWindow = windows.CreateGameWindow(
-		{
-			L"Main Window",
-			0.5, 0.5,
-			0.5, 0.5
-		}
-	);
+	player.CreatePlayerStartField();
+	player.CreatePlayerStartRegion();
 
-	mainWindowId = mainWindow;
-	
-	
-	
+	enemy.CreateEnemyStartField();
+	enemy.CreateEnemyStartRegion();
 }
+
 void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 {
-	auto& input = engine.GetInputManager();
-	auto& windows = engine.GetWindowManager();
-
-	if (input.IsKeyPressed(mainWindowId, VK_LEFT))
-	{
-		int mainWindow = windows.CreateGameWindow(
-			{
-				L"Add Window",
-				a, b,
-				0.2, 0.2
-			}
-		);
-		a += 0.01; b += 0.01;
-	}
-	if (input.IsKeyDown(mainWindowId, VK_RIGHT))
-	{
-		windows.GetWindowById(mainWindowId)->MoveWindow(0.2, 0,1.3,deltaTime);
-	}
-	if (input.IsKeyPressed(mainWindowId, VK_SPACE))
-	{
-		windows.GetWindowById(mainWindowId)->MoveWindow(0, -40.0, 1 , deltaTime);
-	}
-	if (input.IsKeyPressed(mainWindowId, VK_SHIFT))
-	{
-		windows.GetWindowById(mainWindowId)->ReSizeWindow(0.1, 0.1);
-	}
-	if (input.IsKeyPressed(mainWindowId, VK_TAB))
-	{
-		windows.GetWindowById(mainWindowId)->ReSizeWindow(0.8, 0.8);
-	}
+	player.MovePlayerRegion(deltaTime);
+	player.ResizeField();
 }
 
 void GameContent::OnEnd(EngineContext& engine)
