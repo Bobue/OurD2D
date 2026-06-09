@@ -131,6 +131,7 @@
     <ClCompile Include="InputManager.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MyD2DGame.cpp" />
+    <ClCompile Include="WindowController.cpp" />
     <ClCompile Include="WindowManager.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -140,6 +141,7 @@
     <ClInclude Include="GameContent.h" />
     <ClInclude Include="GameWindow.h" />
     <ClInclude Include="InputManager.h" />
+    <ClInclude Include="WindowController.h" />
     <ClInclude Include="WindowManager.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

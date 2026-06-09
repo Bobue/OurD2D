@@ -1,5 +1,4 @@
 ﻿#include "GameContent.h"
-
 #include "EngineContext.h"
 #include "WindowManager.h"
 #include "InputManager.h"
@@ -8,47 +7,16 @@
 
 void GameContent::OnStart(EngineContext& engine)
 {
-	auto& windows = engine.GetWindowManager();
+	player.Initalize(engine);
+	enemy.Initalize(engine);
 
-	int plyaerField = windows.CreateGameWindow( // 플레이어 필드
-		{
-			L"Main Window",
-			0.5, 0.75, // 위치 좌표 
-			1.0, 0.5  // 스케일
-		}
-	);
-	int playerregion = windows.CreateGameWindow( // 플레이어 지역
-		{
-			L"Main Window",
-			0.5, 0.8,
-			0.1, 0.15
-		}
-	);
+	player.CreatePlayerStartField();
+	player.CreatePlayerStartRegion();
 
-	int EnemyField = windows.CreateGameWindow( // 적 필드
-		{
-			L"Main Window",
-			0.5, 0.25,
-			1.0, 0.5
-		}
-	);
-
-	int Enemyregion = windows.CreateGameWindow( // 적 지역
-		{
-			L"Main Window",
-			0.5, 0.2,
-			0.1, 0.15
-		}
-	);
-
-	mainWindowId = plyaerField;
-	mainWindowId = EnemyField;
-	mainWindowId = Enemyregion;
-	mainWindowId = playerregion;
-	
-	
-	
+	enemy.CreateEnemyStartField();
+	enemy.CreateEnemyStartRegion();
 }
+
 void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 {
 	auto& input = engine.GetInputManager();

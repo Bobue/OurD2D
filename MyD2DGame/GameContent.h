@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include "Content.h"
+#include "WindowController.h"
 
 class GameContent : public Content
 {
@@ -8,6 +9,8 @@ public:
 	void OnUpdate(EngineContext& engine, float deltaTime) override;
 	void OnEnd(EngineContext& engine) override;
 
+	WindowController player;
+	WindowController enemy;
 
 private:
 	int mainWindowId = -1;

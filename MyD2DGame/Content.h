@@ -7,7 +7,7 @@ class Content
 public:
 	virtual ~Content() = default;
 
-	virtual void OnStart(EngineContext& engine) {}
+	virtual void OnStart(EngineContext& angine) {}
 	virtual void OnUpdate(EngineContext& engine, float deltaTime) {}
 	virtual void OnEnd(EngineContext& engine) {}
 };
