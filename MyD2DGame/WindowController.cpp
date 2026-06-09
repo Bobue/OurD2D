@@ -58,8 +58,6 @@ void WindowController::MovePlayerRegion(float deltaTime)
 {
     auto& input = context->GetInputManager();
     auto& windows = context->GetWindowManager();
-    
-
    /* if (input.IsKeyPressed(playerRegionId, VK_LEFT))
     {
         int playerFieldId = windows.CreateGameWindow(
@@ -108,4 +106,15 @@ void WindowController::ResizeField()
     {
         windows.GetWindowById(playerRegionId)->ReSizeWindow(0.8, 0.8);
     }
+}
+
+void WindowController::BattleRegion(float deltaTime, int enemyRegionId)
+{
+    auto& windows = context->GetWindowManager();
+
+}
+
+void WindowController::ResetExplore()
+{
+    battleRegionCompareY = 0.0f;
 }
