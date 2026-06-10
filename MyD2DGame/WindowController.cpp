@@ -112,6 +112,37 @@ void WindowController::BattleRegion(float deltaTime, int enemyRegionId)
 {
     auto& windows = context->GetWindowManager();
 
+    auto* playerWnd = windows.GetWindowById(playerRegionId);
+    auto* enemyWnd = windows.GetWindowById(enemyRegionId);
+
+    if (playerWnd == nullptr || enemyWnd == nullptr) return;
+
+    // 목표 위치 (적 region 시작 위치)
+    float targetX = enemyWnd->GetX();
+    float targetY = enemyWnd->GetY();
+
+    float currentX = playerWnd->GetX();
+    float currentY = playerWnd->GetY();
+
+    float diffX = targetX - currentX;
+    float diffY = targetY - currentY;
+
+    // 목표 위치에 충분히 가까우면 멈춤
+    if (abs(diffX) < 5.0f && abs(diffY) < 5.0f) return;
+
+    // 방향 계산해서 이동
+    HMONITOR hMonitor = MonitorFromWindow(playerWnd->GetHwnd(), MONITOR_DEFAULTTONEAREST);
+    MONITORINFO mi = {};
+    mi.cbSize = sizeof(MONITORINFO);
+    if (!GetMonitorInfo(hMonitor, &mi)) return;
+
+    int workWidth = mi.rcWork.right - mi.rcWork.left;
+    int workHeight = mi.rcWork.bottom - mi.rcWork.top;
+
+    float ratioX = diffX / workWidth;
+    float ratioY = diffY / workHeight;
+
+    playerWnd->MoveWindow(ratioX, ratioY, 3.0f, deltaTime);
 }
 
 void WindowController::ResetExplore()
