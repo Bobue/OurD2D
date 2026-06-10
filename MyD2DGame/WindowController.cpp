@@ -167,14 +167,13 @@ void WindowController::DefaultFieldSystem(float deltaTime)
 {
     fixedFieldTime += deltaTime;
 
-    if (fixedFieldTime >= 1.0f)
+    if (fixedFieldTime >= 0.1f)
     {
         if (playerFieldId != -1) PlayerResizeField(deltaTime);
         if (enemyFieldId != -1) EnemyResizeField(deltaTime);
         fixedFieldTime = 0.0f;
     }
 }
-
 void WindowController::PlayerResizeField(float deltaTime)
 {
     auto& windows = context->GetWindowManager();
@@ -182,8 +181,17 @@ void WindowController::PlayerResizeField(float deltaTime)
     if (fieldWnd == nullptr) return;
 
     fieldHeightRatio -= 0.001f;
-    fieldWnd->ReSizeWindow(fieldWidthRatio, fieldHeightRatio);
-    fieldWnd->MoveWindow(0.000f, 0.0005f, 1.0f, 1.0f); // 아래로
+
+    // 아래 고정 = Y위치는 (1.0 - fieldHeightRatio/2)
+    float yRatio = 1.0f - fieldHeightRatio / 2.0f;
+
+    fieldWnd->ResizeWindowToMonitorRatio(
+        fieldWnd->GetHwnd(),
+        fieldWidthRatio,
+        fieldHeightRatio,
+        0.5,
+        yRatio
+    );
 }
 
 void WindowController::EnemyResizeField(float deltaTime)
@@ -193,6 +201,15 @@ void WindowController::EnemyResizeField(float deltaTime)
     if (fieldWnd == nullptr) return;
 
     fieldHeightRatio += 0.001f;
-    fieldWnd->ReSizeWindow(fieldWidthRatio, fieldHeightRatio);
-    fieldWnd->MoveWindow(0.0000f, 0.0005f, 1.0f, 1.0f); // 위로
+
+    // 위 고정 = Y위치는 (fieldHeightRatio/2)
+    float yRatio = fieldHeightRatio / 2.0f;
+
+    fieldWnd->ResizeWindowToMonitorRatio(
+        fieldWnd->GetHwnd(),
+        fieldWidthRatio,
+        fieldHeightRatio,
+        0.5,
+        yRatio
+    );
 }

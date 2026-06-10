@@ -216,7 +216,7 @@ void GameWindow::ResizeWindowToMonitorRatio(HWND hwnd, double widthRatio, double
 
 	int locationWidth = static_cast<int>(workWidth * XRatio) - targetWidth / 2;
 	int locationHeigh = static_cast<int>(workHeight * YRatio) - targetHeight / 2;
-	
+
 
 	SetWindowPos(hwnd, nullptr, locationWidth, locationHeigh, targetWidth, targetHeight, SWP_NOZORDER | SWP_NOACTIVATE);
 }

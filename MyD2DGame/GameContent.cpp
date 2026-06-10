@@ -57,6 +57,7 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 		player.DefaultFieldSystem(deltaTime);
 		enemy.DefaultFieldSystem(deltaTime);
 
+
 		if (input.IsKeyPressed(player.GetPlayerRegionId(), VK_RETURN))
 		{
 			state = BattleState::Battle;
