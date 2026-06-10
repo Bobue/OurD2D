@@ -1,4 +1,5 @@
-﻿#include "GameWindow.h"
+﻿#pragma once
+#include "GameWindow.h"
 #include "InputManager.h"
 
 
@@ -71,6 +72,17 @@ float GameWindow::GetY() const
 {
 	return y;
 }
+
+float GameWindow::GetWidth() const
+{
+	return width;
+}
+
+float GameWindow::GetHeight() const
+{
+	return height;
+}
+
 
 LRESULT GameWindow::HandleMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
