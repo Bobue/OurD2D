@@ -51,6 +51,16 @@ int GameWindow::GetID() const
 	return id;
 }
 
+float GameWindow::GetX() const
+{
+	return x;
+}
+
+float GameWindow::GetY() const
+{
+	return y;
+}
+
 LRESULT GameWindow::HandleMessage(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	if (m_hwnd == nullptr)
