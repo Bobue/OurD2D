@@ -126,6 +126,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Actor.cpp" />
+    <ClCompile Include="Collider.cpp" />
     <ClCompile Include="D2DManager.cpp" />
     <ClCompile Include="Engine.cpp" />
     <ClCompile Include="EngineContext.cpp" />
@@ -134,12 +135,14 @@
     <ClCompile Include="InputManager.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MyD2DGame.cpp" />
+    <ClCompile Include="Test.cpp" />
     <ClCompile Include="WicManager.cpp" />
     <ClCompile Include="WindowController.cpp" />
     <ClCompile Include="WindowManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Actor.h" />
+    <ClInclude Include="Collider.h" />
     <ClInclude Include="Content.h" />
     <ClInclude Include="D2DManager.h" />
     <ClInclude Include="Engine.h" />
@@ -148,6 +151,7 @@
     <ClInclude Include="GameWindow.h" />
     <ClInclude Include="InputManager.h" />
     <ClInclude Include="SpriteAnimation.h" />
+    <ClInclude Include="Test.h" />
     <ClInclude Include="WicManager.h" />
     <ClInclude Include="WindowController.h" />
     <ClInclude Include="WindowManager.h" />

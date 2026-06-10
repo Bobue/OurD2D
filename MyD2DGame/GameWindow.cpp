@@ -1,4 +1,5 @@
-﻿#include "GameWindow.h"
+﻿#pragma once
+#include "GameWindow.h"
 #include "InputManager.h"
 
 

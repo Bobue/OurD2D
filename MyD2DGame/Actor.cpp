@@ -34,6 +34,16 @@ void Actor::Move(float x, float y)
 	transform.y += y;
 }
 
+Transform Actor::GetTransform()
+{
+	return transform;
+}
+
+BoxCollider Actor::GetBoxCollider()
+{
+	return collider;
+}
+
 void Actor::SetBitmap(const Microsoft::WRL::ComPtr<ID2D1Bitmap>& bitmap)
 {
 	this->bitmap = bitmap;
