@@ -224,9 +224,6 @@ void GameContent::OnRender(EngineContext& engine)
 			}
 		}
 	}
-
-
-	
 }
 
 void GameContent::OnEnd(EngineContext& engine)
