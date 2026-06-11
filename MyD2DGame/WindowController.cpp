@@ -69,6 +69,46 @@ void WindowController::CreateEnemyStartRegion()
     );
 }
 
+void WindowController::CreateBattleField()
+{
+    auto& windows = context->GetWindowManager();
+
+    if (battleFieldId != -1) return;
+
+    battleFieldId = windows.CreateGameWindow(
+        {
+            L"Battle Field",
+            0.5f,
+            0.5f,
+            0.1f,
+            0.01f,
+            false
+        }
+    );
+}
+void WindowController::ResizeBattleField(float heightRatio)
+{
+    auto& windows = context->GetWindowManager();
+    auto* battleWnd = windows.GetWindowById(battleFieldId);
+
+    if (battleWnd == nullptr) return;
+
+    battleWnd->ResizeWindowToMonitorRatio(
+        battleWnd->GetHwnd(),
+        0.1f,
+        heightRatio,
+        0.5f,
+        0.5f
+    );
+}
+void WindowController::DestroyBattleField()
+{
+    // WindowManager에 Delete/Destroy 함수가 있으면 그걸 쓰면 됨.
+    // 예:
+    // context->GetWindowManager().DestroyGameWindow(battleFieldId);
+
+    battleFieldId = -1;
+}
 
 void WindowController::MovePlayerRegion(float deltaTime)
 {
@@ -215,32 +255,4 @@ bool WindowController::IsBattleRegionArrived(int enemyRegionId)
         abs(playerStartY - enemyWnd->GetY()) <= 5.0f;
 
     return playerArrived && enemyArrived;
-}
-void WindowController::ResizePlayerRegionForBattle(float heightRatio, float yRatio)
-{
-    auto& windows = context->GetWindowManager();
-    auto* regionWnd = windows.GetWindowById(playerRegionId);
-    if (regionWnd == nullptr) return;
-
-    regionWnd->ResizeWindowToMonitorRatio(
-        regionWnd->GetHwnd(),
-        0.1f,
-        heightRatio,
-        0.5f,
-        yRatio
-    );
-}
-void WindowController::ResizeEnemyRegionForBattle(int enemyRegionId, float heightRatio, float yRatio)
-{
-    auto& windows = context->GetWindowManager();
-    auto* enemyWnd = windows.GetWindowById(enemyRegionId);
-    if (enemyWnd == nullptr) return;
-
-    enemyWnd->ResizeWindowToMonitorRatio(
-        enemyWnd->GetHwnd(),
-        0.1f,
-        heightRatio,
-        0.5f,
-        yRatio
-    );
 }

@@ -18,7 +18,6 @@ void GameContent::OnStart(EngineContext& engine)
 {
 	player.Initialize(engine);
 	enemy.Initialize(engine);
-
 	// 플레이어와 적 객체 생성
 
 	auto& windows = engine.GetWindowManager();
@@ -69,7 +68,6 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 
 		if (input.IsKeyPressed(player.GetPlayerRegionId(), VK_RETURN))
 		{
-			battleRegionHeight = 0.15f;
 			state = BattleState::MoveToBattle;
 		}
 
@@ -81,12 +79,19 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 		if (player.IsBattleRegionArrived(enemy.GetEnemyRegionId()))
 		{
 			battleExpandT = 0.0f;
+			battleFieldCreated = false;
 			state = BattleState::ExpandBattle;
 		}
 		break;
 
 	case BattleState::ExpandBattle:
 	{
+		if (!battleFieldCreated)
+		{
+			player.CreateBattleField();
+			battleFieldCreated = true;
+		}
+
 		battleExpandT += battleExpandSpeed * deltaTime;
 
 		if (battleExpandT > 1.0f)
@@ -94,28 +99,13 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 			battleExpandT = 1.0f;
 		}
 
-		float startHeight = 0.15f;
-		float endHeight = 1.0f;
+		float startHeight = 0.01f;
+		float endHeight = 0.75f;
 
 		float heightRatio =
 			startHeight + (endHeight - startHeight) * battleExpandT;
 
-		// 자리 바뀐 뒤:
-		// player는 enemy 시작 위치 쪽: y 0.2 근처
-		// enemy는 player 시작 위치 쪽: y 0.8 근처
-		float playerStartYRatio = 0.2f;
-		float enemyStartYRatio = 0.8f;
-
-		float centerYRatio = 0.5f;
-
-		float playerYRatio =
-			playerStartYRatio + (centerYRatio - playerStartYRatio) * battleExpandT;
-
-		float enemyYRatio =
-			enemyStartYRatio + (centerYRatio - enemyStartYRatio) * battleExpandT;
-
-		player.ResizePlayerRegionForBattle(heightRatio, playerYRatio);
-		player.ResizeEnemyRegionForBattle(enemy.GetEnemyRegionId(), heightRatio, enemyYRatio);
+		player.ResizeBattleField(heightRatio);
 
 		if (battleExpandT >= 1.0f)
 		{
@@ -141,28 +131,23 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 			battleExpandT = 0.0f;
 		}
 
-		float startHeight = 0.15f;
-		float endHeight = 1.0f;
+		float startHeight = 0.01f;
+		float endHeight = 0.75;
 
 		float heightRatio =
 			startHeight + (endHeight - startHeight) * battleExpandT;
 
-		float playerStartYRatio = 0.2f;
-		float enemyStartYRatio = 0.8f;
-		float centerYRatio = 0.5f;
+		player.ResizeBattleField(heightRatio);
 
-		float playerYRatio =
-			playerStartYRatio + (centerYRatio - playerStartYRatio) * battleExpandT;
+		if (battleExpandT <= 0.0f)
+		{
+			player.DestroyBattleField();
+			battleFieldCreated = false;
+			state = BattleState::ReturnExplore;
+		}
 
-		float enemyYRatio =
-			enemyStartYRatio + (centerYRatio - enemyStartYRatio) * battleExpandT;
-
-		player.ResizePlayerRegionForBattle(heightRatio, playerYRatio);
-		player.ResizeEnemyRegionForBattle(
-			enemy.GetEnemyRegionId(),
-			heightRatio,
-			enemyYRatio
-		);
+		break;
+	
 
 		if (battleExpandT <= 0.0f)
 		{
@@ -176,7 +161,6 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 		if (player.BattleEndRegion(deltaTime, enemy.GetEnemyRegionId()))
 		{
 			battleExpandT = 0.0f;
-			battleRegionHeight = 0.15f;
 			state = BattleState::Explore;
 		}
 		break;
@@ -209,11 +193,13 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 		}
 		*/
 
-		for (auto& actor : actors)
-		{
-			actor->Update(deltaTime);
-		}
 
+
+	}
+
+	for (auto& actor : actors)
+	{
+		actor->Update(deltaTime);
 	}
 }
 

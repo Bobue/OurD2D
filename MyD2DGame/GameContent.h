@@ -25,7 +25,7 @@ private:
 	int mainWindowId = -1;
 	WindowController player; // 플레이어 컨트롤러(창) 객체
 	WindowController enemy; // 적 컨트롤러(창) 객체
-	
+
 	BattleState state = BattleState::Explore; // 배틀 상태
 
 
@@ -35,7 +35,8 @@ private:
 	float battleRegionHeight = 0.15f;
 
 	float battleExpandT = 0.0f;
-	float battleExpandSpeed = 1.0f;
+	float battleExpandSpeed = 1.0f; 
+	bool battleFieldCreated = false;
 
 	//오디오, 비트맵 임시 변수(삭제예정)
 	float a = 0.1f, b = 0.1f;

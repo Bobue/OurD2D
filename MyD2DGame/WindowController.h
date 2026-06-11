@@ -17,6 +17,10 @@ public:
 	void CreateEnemyStartField();
 	void CreateEnemyStartRegion();
 
+	void CreateBattleField();
+	void ResizeBattleField(float heightRatio);
+	void DestroyBattleField();
+
 	// Create MovePlayerRegion function
 	void MovePlayerRegion(float deltatime);
 
@@ -35,9 +39,6 @@ public:
 	void ResizeEnemyField(float boundary);
 	bool IsBattleRegionArrived(int enemyRegionId);
 
-	void ResizePlayerRegionForBattle(float heightRatio, float yRatio);
-	void ResizeEnemyRegionForBattle(int enemyRegionId, float heightRatio, float yRatio);
-
 private :
 
 	void MoveToward(int wndId, float targetX, float targetY, float speed, float deltaTime);
@@ -46,6 +47,7 @@ private :
 protected:
 
 	EngineContext* context = nullptr;
+	int battleFieldId = -1;
 	int playerFieldId = -1;
 	int playerRegionId = -1;
 	int enemyFieldId = -1;
@@ -58,5 +60,4 @@ protected:
 	float playerStartY = 0.0f;
 
 	float fieldWidthRatio = 1.007f;
-	float fieldHeightRatio = 0.508f;
 };
