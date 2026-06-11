@@ -4,7 +4,7 @@
 #include "InputManager.h"
 
 
-void WindowController::Initalize(EngineContext &engine)
+void WindowController::Initialize(EngineContext &engine)
 {
 	context = &engine;
 }
@@ -14,6 +14,8 @@ void WindowController::SaveStartPositions(int enemyRegionId)
     auto& windows = context->GetWindowManager();
     auto* playerWnd = windows.GetWindowById(playerRegionId);
     auto* enemyWnd = windows.GetWindowById(enemyRegionId);
+
+    if (playerWnd == nullptr || enemyWnd == nullptr) return;
 
     playerStartX = playerWnd->GetX();
     playerStartY = playerWnd->GetY();

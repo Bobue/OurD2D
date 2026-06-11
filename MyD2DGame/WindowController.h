@@ -1,17 +1,10 @@
 #pragma once
 #include "EngineContext.h"
 
-enum class BattleState
-{
-	Explore, // Ž��
-	Battle, // ��Ʋ ��
-	Return // �ڸ��� ���ư��� ��
-};
-
 class WindowController
 {
 public:
-	void Initalize(EngineContext& engine);
+	void Initialize(EngineContext& engine);
 
 	void SaveStartPositions(int enemyRegionId);
 

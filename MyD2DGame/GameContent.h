@@ -3,7 +3,7 @@
 #include "WindowController.h"
 
 #include "Actor.h"
-
+#include "BattleState.h"
 #include "SpriteAnimation.h"
 #include <d2d1.h>
 #include<wrl/client.h>

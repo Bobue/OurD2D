@@ -16,8 +16,8 @@
 
 void GameContent::OnStart(EngineContext& engine)
 {
-	player.Initalize(engine);
-	enemy.Initalize(engine);
+	player.Initialize(engine);
+	enemy.Initialize(engine);
 
 	// 플레이어와 적 객체 생성
 
@@ -36,6 +36,7 @@ void GameContent::OnStart(EngineContext& engine)
 	enemy.CreateEnemyStartRegion();
 	player.CreatePlayerStartRegion();
 	// 플레이어, 적 지역 우선 생성 ( 제일 위로 올리기 위해서 )
+
 
 	player.SaveStartPositions(enemy.GetEnemyRegionId()); 
 	// 시작 위치 저장

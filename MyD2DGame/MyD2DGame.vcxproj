@@ -141,6 +141,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Actor.h" />
+    <ClInclude Include="BattleState.h" />
     <ClInclude Include="Content.h" />
     <ClInclude Include="D2DManager.h" />
     <ClInclude Include="Engine.h" />
