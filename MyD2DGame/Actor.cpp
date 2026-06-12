@@ -3,6 +3,9 @@
 #include "EngineContext.h"
 #include "WicManager.h"
 
+#include "WindowManager.h"
+#include "GameWindow.h"
+#include "OverlayWindow.h"
 
 Actor::Actor(int windowId) : windowId(windowId) {}
 
@@ -144,6 +147,42 @@ void Actor::Render(D2DManager& d2d) const
 	}
 }
 
+void Actor::SetAnchorWindowId(int windowId)
+{
+	anchorWindowId = windowId;
+}
+
+int Actor::GetAnchorWindowId() const
+{
+	return anchorWindowId;
+}
+
+void Actor::ClearAnchorWindow()
+{
+	anchorWindowId = -1;
+}
+
+//오버레이 렌더함수
+void Actor::RenderToOverlay(D2DManager& d2d, const WindowManager& windows) const
+{
+	if (windowId < 0 || bitmap == nullptr)
+	{
+		return;
+	}
+
+	D2D1_RECT_F destinationRect = GetOverlayDestinationRect(windows);
+
+	if (currentAnimation != nullptr)
+	{
+		d2d.DrawBitmapFrame(windowId, bitmap.Get(), destinationRect, currentAnimation->GetSourceRect());
+
+	}
+	else
+	{
+		d2d.DrawBitmap(windowId, bitmap.Get(), destinationRect);
+	}
+}
+
 D2D1_RECT_F Actor::GetDestinationRect() const
 {
 	return D2D1::RectF(
@@ -151,5 +190,33 @@ D2D1_RECT_F Actor::GetDestinationRect() const
 		transform.y,
 		transform.x + transform.width,
 		transform.y + transform.height
+	);
+}
+
+D2D1_RECT_F Actor::GetOverlayDestinationRect(const WindowManager& windows) const
+{
+	float baseX = 0.0f;
+	float baseY = 0.0f;
+
+	const OverlayWindow* overlay = windows.GetOverlayWindow();
+	const GameWindow* anchorWindow = windows.GetWindowById(anchorWindowId);
+
+	if (overlay != nullptr && anchorWindow != nullptr)
+	{
+		/*POINT clientOrigin{ 0,0 };
+		ClientToScreen(anchorWindow->GetHwnd(), &clientOrigin);
+
+		baseX = static_cast<float>(clientOrigin.x - overlay->GetX());
+		baseY = static_cast<float>(clientOrigin.y - overlay->GetY());*/
+		baseX = anchorWindow->GetClientX() - static_cast<float>(overlay->GetX());
+		baseY = anchorWindow->GetClientY() - static_cast<float>(overlay->GetY());
+
+	}
+
+	return D2D1::RectF(
+		baseX + transform.x,
+		baseY + transform.y,
+		baseX + transform.x + transform.width,
+		baseY + transform.y + transform.height
 	);
 }

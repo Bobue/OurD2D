@@ -1,55 +1,70 @@
 #pragma once
 #include "EngineContext.h"
 
-enum class BattleState
-{
-	Explore, // 탐색
-	Battle, // 배틀 중
-	Return // 자리로 돌아가는 중
-};
-
 class WindowController
 {
 public:
-	void Initalize(EngineContext& engine);
 
-	// 처음 창 위치 저장
+	// Initialize the WindowController with the engine context
+	void Initialize(EngineContext& engine);
+
+	// Start player and enemy positions save
 	void SaveStartPositions(int enemyRegionId);
 
-	// 플레이어 창 위치 수정
+	// Create the player, enemy fields and regions
 	void CreatePlayerStartField();
 	void CreatePlayerStartRegion();
 
-	// 적 창 위치 수정
 	void CreateEnemyStartField();
 	void CreateEnemyStartRegion();
 
+	// Battle Field functions
+	void CreateBattleField(); // create
+	void ResizeBattleField(float heightRatio); // resize
+	void DestroyBattleField(); // destroy (Not Maked)
+
+	// Create MovePlayerRegion function
 	void MovePlayerRegion(float deltatime);
-	void ResizeField();
 
-
-	// 적 전투 돌입 시 enemy field 제거 player field 크기 제어
+	// player, enemy battle region move function
 	void BattleRegion(float deltaTime, int enemyRegionId);
-	// Player, Enemy Region Id 얻기
 	int GetPlayerRegionId() const { return playerRegionId; }
 	int GetEnemyRegionId() const { return enemyRegionId; };
-	// 적 전투 종료 시 제자리로 복귀
+
+	// player,enemy battle region return function
 	bool BattleEndRegion(float deltaTime, int enemyRegionId);
 
+	//fieldBoundary resize function
+	void ResizePlayerField(float boundary); // Resize player field (down down gogo~)
+	void ResizeEnemyField(float boundary); // Resize enemy field (up up gogo~)
+	bool IsBattleRegionArrived(int enemyRegionId); // Arrived battle region check function
+
+	// (get Field) 
+	int GetBattleFieldId() const { return battleFieldId; }
 private :
-	// BattleRegion, BattleEndRegion 시 동시에 사용하는 부분
+	// windowId -> targetX,targetY -> speed Move function (windowId -> wnd -> move)
 	void MoveToward(int wndId, float targetX, float targetY, float speed, float deltaTime);
 	
 	
-private:
+protected:
+
 	EngineContext* context = nullptr;
+	// engine manager (refernce) pointer
+
+	// id == -1 (not created), id != -1 (created)
+	int battleFieldId = -1;
 	int playerFieldId = -1;
 	int playerRegionId = -1;
 	int enemyFieldId = -1;
 	int enemyRegionId = -1;
 
+
+	// region wnd start position(pixel) 
 	float enemyStartX = 0.0f;
 	float enemyStartY = 0.0f;
 	float playerStartX = 0.0f;
 	float playerStartY = 0.0f;
+
+	float fieldWidthRatio = 1.007f;
+	// field width ratio(0~1) 
 };

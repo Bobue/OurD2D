@@ -9,6 +9,7 @@
 
 class EngineContext;
 class D2DManager;
+class WindowManager;
 
 struct Transform//액터의 기본 위치와 크기
 {
@@ -52,8 +53,16 @@ public:
 	void Update		(float deltaTime);
 	void Render(D2DManager& d2d) const;
 
+	void SetAnchorWindowId(int windowId);
+	int GetAnchorWindowId() const;
+	void ClearAnchorWindow();
+
+	void RenderToOverlay(D2DManager& d2d, const WindowManager& windows) const;
+
 private:
 	D2D1_RECT_F GetDestinationRect() const;
+	D2D1_RECT_F GetOverlayDestinationRect(const WindowManager& windows) const;
+	int anchorWindowId = -1;
 
 private:
 	int windowId;
