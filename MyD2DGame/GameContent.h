@@ -48,6 +48,12 @@ private:
 	//투명윈도우ID
 	int overlayRenderTargetId = 0;
 
+	// 플레이어 리소스 움직이기
+	void MovePlayerActor(EngineContext& engine, float deltaTime);
+
+	// Battle 종료 시 돌아올 위치 (마우가) 
+	float battleStartX = 0.0f;
+	float battleStartY = 0.0f;
 
 	void PlayerHitSound();
 	

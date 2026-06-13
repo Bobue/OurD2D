@@ -123,8 +123,44 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 		player.ResizeBattleField(heightRatio);
 
 		if (battleExpandT >= 1.0f) {
+			/*player.ResizeRegionsForBattle();
+			enemy.ResizeRegionsForBattle();
+			state = BattleState::Battle;*/
+			auto& windows = engine.GetWindowManager();
+
+			// 1. Resize 전 절대 위치 저장
+			std::vector<std::pair<float, float>> absolutePositions;
+			for (auto& actor : actors)
+			{
+				auto* anchorWnd = windows.GetWindowById(actor->GetAnchorWindowId());
+				if (anchorWnd == nullptr) { absolutePositions.push_back({ 0,0 }); continue; }
+				absolutePositions.push_back({
+					anchorWnd->GetClientX() + actor->GetTransform().x,
+					anchorWnd->GetClientY() + actor->GetTransform().y
+					});
+			}
+
+			// 2. Resize
 			player.ResizeRegionsForBattle();
 			enemy.ResizeRegionsForBattle();
+
+			// 3. Resize 후 transform 보정
+			for (int i = 0; i < actors.size(); i++)
+			{
+				auto* anchorWnd = windows.GetWindowById(actors[i]->GetAnchorWindowId());
+				if (anchorWnd == nullptr) continue;
+				actors[i]->SetPosition(
+					absolutePositions[i].first - anchorWnd->GetClientX(),
+					absolutePositions[i].second - anchorWnd->GetClientY()
+				);
+
+				// playerActor 배틀 시작 위치 저장
+				if (actors[i].get() == playerActor)
+				{
+					battleStartX = playerActor->GetTransform().x;
+					battleStartY = playerActor->GetTransform().y;
+				}
+			}
 			state = BattleState::Battle;
 		}
 
@@ -132,18 +168,69 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 	}
 
 	case BattleState::Battle:
-		if (input.IsKeyPressed(player.GetPlayerRegionId(), VK_BACK))
+
+		/*if (input.IsKeyPressed(player.GetPlayerRegionId(), VK_BACK))
 		{
 			player.RestoreRegionsFromBattle();
 			enemy.RestoreRegionsFromBattle();
 			battleExpandT = 1.0f;
 			state = BattleState::Return;
+		}*/
+		MovePlayerActor(engine, deltaTime);
+		if (input.IsKeyPressed(player.GetPlayerRegionId(), VK_BACK))
+		{
+			state = BattleState::ReturnCenter;
 		}
 		break;
+	case BattleState::ReturnCenter:
+	{
+		float dx = battleStartX - playerActor->GetTransform().x;
+		float dy = battleStartY - playerActor->GetTransform().y;
+
+		if (abs(dx) <= 5.0f && abs(dy) <= 5.0f)
+		{
+			playerActor->SetPosition(battleStartX, battleStartY);
+
+			// 도착 -> Restore 후 Return
+			auto& windows = engine.GetWindowManager();
+			std::vector<std::pair<float, float>> absolutePositions;
+			for (auto& actor : actors)
+			{
+				auto* anchorWnd = windows.GetWindowById(actor->GetAnchorWindowId());
+				if (anchorWnd == nullptr) { absolutePositions.push_back({ 0,0 }); continue; }
+				absolutePositions.push_back({
+					anchorWnd->GetClientX() + actor->GetTransform().x,
+					anchorWnd->GetClientY() + actor->GetTransform().y
+					});
+			}
+
+			player.RestoreRegionsFromBattle();
+			enemy.RestoreRegionsFromBattle();
+
+			for (int i = 0; i < (int)actors.size(); i++)
+			{
+				auto* anchorWnd = windows.GetWindowById(actors[i]->GetAnchorWindowId());
+				if (anchorWnd == nullptr) continue;
+				actors[i]->SetPosition(
+					absolutePositions[i].first - anchorWnd->GetClientX(),
+					absolutePositions[i].second - anchorWnd->GetClientY()
+				);
+			}
+
+			battleExpandT = 1.0f;
+			state = BattleState::Return;
+		}
+		else
+		{
+			playerActor->Move(dx / 0.5f * deltaTime, dy / 0.5f * deltaTime);
+		}
+		break;
+	}
 
 	case BattleState::Return:
 	{
 		battleExpandT -= battleExpandSpeed * deltaTime;
+
 		if (battleExpandT < 0.0f) battleExpandT = 0.0f;
 
 		float startHeight = 0.01f;
@@ -177,28 +264,59 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 	}
 	
 }
-
 void GameContent::OnRender(EngineContext& engine)
 {
 	auto& d2d = engine.GetD2DManager();
 	auto& windows = engine.GetWindowManager();
 
-	d2d.BeginDraw(overlayRenderTargetId);
-	d2d.Clear(overlayRenderTargetId, D2D1::ColorF(1.0f, 0.0f, 1.0f));
-
-	for (auto& actor : actors)
+	// Battle Field 렌더링
+	int battleFieldId = player.GetBattleFieldId();
+	if (battleFieldId != -1)
 	{
-		actor->RenderToOverlay(d2d, windows);
+		d2d.BeginDraw(battleFieldId);
+		d2d.Clear(battleFieldId, D2D1::ColorF(D2D1::ColorF::White)); // 원하는 색
+		d2d.EndDraw(battleFieldId);
 	}
 
+	// 기존 overlay 렌더링
+	d2d.BeginDraw(overlayRenderTargetId);
+	d2d.Clear(overlayRenderTargetId, D2D1::ColorF(1.0f, 0.0f, 1.0f));
+	for (auto& actor : actors) { actor->RenderToOverlay(d2d, windows); }
 	d2d.EndDraw(overlayRenderTargetId);
-
 }
 
 void GameContent::OnEnd(EngineContext& engine)
 {
 	actors.clear();
 	playerActor = nullptr;
+}
+
+void GameContent::MovePlayerActor(EngineContext& engine, float deltaTime)
+{
+	auto& input = engine.GetInputManager();
+	if (input.IsKeyDown(player.GetPlayerRegionId(), VK_UP))
+		playerActor->Move(0, -200.0f * deltaTime);
+	if (input.IsKeyDown(player.GetPlayerRegionId(), VK_DOWN))
+		playerActor->Move(0, 200.0f * deltaTime);
+	if (input.IsKeyDown(player.GetPlayerRegionId(), VK_LEFT))
+		playerActor->Move(-200.0f * deltaTime, 0);
+	if (input.IsKeyDown(player.GetPlayerRegionId(), VK_RIGHT))
+		playerActor->Move(200.0f * deltaTime, 0);
+	// 클램핑
+	auto& windows = engine.GetWindowManager();
+	auto* playerWnd = windows.GetWindowById(player.GetPlayerRegionId());
+	if (playerWnd == nullptr) return;
+
+	float borderX = playerWnd->GetClientX() - playerWnd->GetX();
+	float borderY = playerWnd->GetClientY() - playerWnd->GetY();
+
+	float maxX = playerWnd->GetWidth() - playerActor->GetTransform().width - borderX * 2;
+	float maxY = playerWnd->GetHeight() - playerActor->GetTransform().height - borderY - borderX;
+
+	float clampedX = max(0.0f, min(playerActor->GetTransform().x, maxX));
+	float clampedY = max(0.0f, min(playerActor->GetTransform().y, maxY));
+
+	playerActor->SetPosition(clampedX, clampedY);
 }
 
 void GameContent::PlayerHitSound()
