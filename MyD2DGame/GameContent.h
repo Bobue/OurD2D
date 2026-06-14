@@ -56,10 +56,11 @@ private:
 	
 	//콜라이더 표시변수
 	bool showCollider = false;
+	bool isMoving = false;
 
 	//액터 임시 변수(삭제 예정)
 	std::vector<std::unique_ptr<Actor>> actors;
 	Actor* playerActor = nullptr;
-
+	Actor* playerActorRun = nullptr;
 
 };

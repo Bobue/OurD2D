@@ -64,22 +64,26 @@ void GameContent::OnStart(EngineContext& engine)
 
 
 	//투명창에 플레이어 생성
-	auto playerActor = std::make_unique<Actor>(overlayRenderTargetId);
-	playerActor->SetAnchorWindowId(player.GetPlayerRegionId());
+	auto playerIdle = std::make_unique<Actor>(overlayRenderTargetId);
+	playerIdle->SetAnchorWindowId(player.GetPlayerRegionId());
+	playerIdle->InitializeSprite(engine, L"../Resource/구구가가아이들.png", -12.0f, 0.0f, 200.0f, 112.0f);
+	playerIdle->AddAnimation(L"idle", 400, 225, 30, 6, 15.0f);
+	playerIdle->PlayAnimation(L"idle");
+	playerIdle->AddBoxCollider(75.0f, 15.0f, 50.0f, 90.0f);
 
-	playerActor->InitializeSprite(engine, L"../Resource/구구가가idle2 (1)-export-export.png", 00.0f, 0.0f, 200.0f, 112.0f);
-	playerActor->AddAnimation(L"idle", 400, 225, 30, 6, 15.0f);
-	playerActor->PlayAnimation(L"idle");
+	// run 액터
+	auto playerRun = std::make_unique<Actor>(overlayRenderTargetId);
+	playerRun->SetAnchorWindowId(player.GetPlayerRegionId());
+	playerRun->InitializeSprite(engine, L"../Resource/GUGARUN.png", -12.0f, 0.0f, 200.0f, 112.0f);
+	playerRun->AddAnimation(L"run", 666, 375, 20, 20, 15.0f);
+	playerRun->PlayAnimation(L"run");
 
-	//playerActor->InitializeSprite(engine, L"../Resource/알아.png", 40.0f, 0.0f, 100.0f, 100.0f);
-	playerActor->AddBoxCollider(75.0f, 15.0f, 50.0f, 90.0f);
+	this->playerActor = playerIdle.get();
+	this->playerActorRun = playerRun.get();
 
-
-	// actors에 저장
-	this->playerActor = playerActor.get();
-	actors.push_back(std::move(playerActor));
+	actors.push_back(std::move(playerIdle));
+	actors.push_back(std::move(playerRun));
 	actors.push_back(std::move(enemyActor));
-
 }
 
 void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
@@ -131,14 +135,12 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 		if (battleExpandT > 1.0f) battleExpandT = 1.0f;
 
 		float startHeight = 0.01f;
-		float endHeight = 0.75f;
+		float endHeight = 1.0f;
 		float heightRatio = startHeight + (endHeight - startHeight) * battleExpandT;
 		player.ResizeBattleField(heightRatio);
 
 		if (battleExpandT >= 1.0f) {
-			/*player.ResizeRegionsForBattle();
-			enemy.ResizeRegionsForBattle();
-			state = BattleState::Battle;*/
+
 			auto& windows = engine.GetWindowManager();
 
 			// 1. Resize 전 절대 위치 저장
@@ -285,27 +287,35 @@ void GameContent::OnRender(EngineContext& engine)
 	auto& d2d = engine.GetD2DManager();
 	auto& windows = engine.GetWindowManager();
 
-	// Battle Field 렌더링
 	int battleFieldId = player.GetBattleFieldId();
 	if (battleFieldId != -1)
 	{
 		d2d.BeginDraw(battleFieldId);
-		d2d.Clear(battleFieldId, D2D1::ColorF(D2D1::ColorF::White)); // 원하는 색
+		d2d.Clear(battleFieldId, D2D1::ColorF(D2D1::ColorF::White));
 		d2d.EndDraw(battleFieldId);
 	}
 
-	// 기존 overlay 렌더링
 	d2d.BeginDraw(overlayRenderTargetId);
 	d2d.Clear(overlayRenderTargetId, D2D1::ColorF(1.0f, 0.0f, 1.0f));
+
+	// playerActor, playerActorRun 제외하고 나머지 렌더
 	for (auto& actor : actors)
 	{
+		if (actor.get() == playerActor || actor.get() == playerActorRun) continue;
 		actor->RenderToOverlay(d2d, windows);
-		
 		if (showCollider)
-		{
 			actor->RenderColliderToOverlay(d2d, windows);
-		}
 	}
+
+	// isMoving에 따라 하나만 렌더
+	if (isMoving)
+		playerActorRun->RenderToOverlay(d2d, windows);
+	else
+		playerActor->RenderToOverlay(d2d, windows);
+
+	if (showCollider)
+		playerActor->RenderColliderToOverlay(d2d, windows);
+
 	d2d.EndDraw(overlayRenderTargetId);
 }
 
@@ -318,15 +328,28 @@ void GameContent::OnEnd(EngineContext& engine)
 void GameContent::MovePlayerActor(EngineContext& engine, float deltaTime)
 {
 	auto& input = engine.GetInputManager();
+	bool moving = false;
+
 	if (input.IsKeyDown(player.GetPlayerRegionId(), VK_UP))
-		playerActor->Move(0, -200.0f * deltaTime);
+	{
+		playerActor->Move(0, -200.0f * deltaTime); moving = true;
+	}
 	if (input.IsKeyDown(player.GetPlayerRegionId(), VK_DOWN))
-		playerActor->Move(0, 200.0f * deltaTime);
+	{
+		playerActor->Move(0, 200.0f * deltaTime); moving = true;
+	}
 	if (input.IsKeyDown(player.GetPlayerRegionId(), VK_LEFT))
-		playerActor->Move(-200.0f * deltaTime, 0);
+	{
+		playerActor->Move(-200.0f * deltaTime, 0); moving = true;
+	}
 	if (input.IsKeyDown(player.GetPlayerRegionId(), VK_RIGHT))
-		playerActor->Move(200.0f * deltaTime, 0);
-	// 클램핑
+	{
+		playerActor->Move(200.0f * deltaTime, 0); moving = true;
+	}
+
+	isMoving = moving;
+	playerActorRun->SetPosition(playerActor->GetTransform().x, playerActor->GetTransform().y);
+
 	auto& windows = engine.GetWindowManager();
 	auto* playerWnd = windows.GetWindowById(player.GetPlayerRegionId());
 	if (playerWnd == nullptr) return;
@@ -334,10 +357,15 @@ void GameContent::MovePlayerActor(EngineContext& engine, float deltaTime)
 	float borderX = playerWnd->GetClientX() - playerWnd->GetX();
 	float borderY = playerWnd->GetClientY() - playerWnd->GetY();
 
-	float maxX = playerWnd->GetWidth() - playerActor->GetTransform().width - borderX * 2;
-	float maxY = playerWnd->GetHeight() - playerActor->GetTransform().height - borderY - borderX;
+	RECT rect{};
+	GetWindowRect(playerWnd->GetHwnd(), &rect);
+	float wndWidth = static_cast<float>(rect.right - rect.left);
+	float wndHeight = static_cast<float>(rect.bottom - rect.top);
 
-	float clampedX = max(0.0f, min(playerActor->GetTransform().x, maxX));
+	float maxX = wndWidth - 133.0f - borderX * 2;
+	float maxY = wndHeight - 115.0f - borderY - borderX;
+
+	float clampedX = max(-65.0f, min(playerActor->GetTransform().x, maxX));
 	float clampedY = max(0.0f, min(playerActor->GetTransform().y, maxY));
 
 	playerActor->SetPosition(clampedX, clampedY);

@@ -54,6 +54,7 @@ public:
 
 	void BattleFieldSystem(float deltaTime);
 	void PushField(float deltaTime);
+	void ResizeRegionsForBattleField(float boundary);
 
 private :
 	// windowId -> targetX,targetY -> speed Move function (windowId -> wnd -> move)
