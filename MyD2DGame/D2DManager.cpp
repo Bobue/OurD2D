@@ -20,6 +20,22 @@ void D2DManager::Shutdown()
 	d2dFactory.Reset();
 }
 
+void D2DManager::GetTransform(int windowId, D2D1_MATRIX_3X2_F& outTransform)
+{
+	auto iter = windowRenderTargets.find(windowId);
+	if (iter == windowRenderTargets.end()) return; 
+
+	iter->second.renderTarget->GetTransform(&outTransform);
+}
+
+void D2DManager::SetTransform(int windowId, const D2D1_MATRIX_3X2_F& transform)
+{
+	auto iter = windowRenderTargets.find(windowId);
+	if (iter == windowRenderTargets.end()) return;
+
+	iter->second.renderTarget->SetTransform(transform);
+}
+
 //·»´õÅ¸°Ù »ý¼º
 HRESULT D2DManager::CreateRenderTargetForWindow(int windowId, HWND hwnd)
 {

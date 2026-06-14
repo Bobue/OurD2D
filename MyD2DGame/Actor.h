@@ -33,6 +33,8 @@ public:
 
 	Transform GetTransform() const;
 
+	void SetFlipx(bool flip);
+	bool GetFlipX() const;
 
 	void AddBoxCollider(float offsetX, float offsetY, float width, float height);
 	bool HasBoxCollider() const;
@@ -88,4 +90,7 @@ private:
 
 	//알파값
 	float alpha = 1.0f;
+
+	//flip 여부
+	bool flipX = false;
 };

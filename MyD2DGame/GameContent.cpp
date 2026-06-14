@@ -356,9 +356,17 @@ void GameContent::MovePlayerActor(EngineContext& engine, float deltaTime)
 	if (input.IsKeyDown(player.GetPlayerRegionId(), VK_DOWN))
 		playerActor->Move(0, 200.0f * deltaTime);
 	if (input.IsKeyDown(player.GetPlayerRegionId(), VK_LEFT))
+	{\
+		playerActor->SetFlipx(false);
 		playerActor->Move(-200.0f * deltaTime, 0);
+	}
+
 	if (input.IsKeyDown(player.GetPlayerRegionId(), VK_RIGHT))
+	{
+		playerActor->SetFlipx(true);
 		playerActor->Move(200.0f * deltaTime, 0);
+	}
+
 	// 클램핑
 	auto& windows = engine.GetWindowManager();
 	auto* playerWnd = windows.GetWindowById(player.GetPlayerRegionId());

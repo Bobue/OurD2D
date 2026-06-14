@@ -39,6 +39,16 @@ void Actor::Move(float x, float y)
 	transform.y += y;
 }
 
+void Actor::SetFlipx(bool flip)
+{
+	flipX = flip;
+}
+
+bool Actor::GetFlipX() const
+{
+	return flipX;
+}
+
 Transform Actor::GetTransform() const
 {
 	return transform;
@@ -193,6 +203,23 @@ void Actor::RenderToOverlay(D2DManager& d2d, const WindowManager& windows) const
 
 	D2D1_RECT_F destinationRect = GetOverlayDestinationRect(windows);
 
+	//플립시
+	D2D1_MATRIX_3X2_F oldTransform;
+	d2d.GetTransform(windowId, oldTransform);
+
+	if (flipX)
+	{
+		float centerX = (destinationRect.left + destinationRect.right) * 0.5f;
+		float centerY = (destinationRect.top + destinationRect.bottom) * 0.5f;
+
+		D2D1_MATRIX_3X2_F flipTransform =
+			D2D1::Matrix3x2F::Scale(
+				D2D1::SizeF(-1.0f, 1.0f), D2D1::Point2F(centerX, centerY)
+			);
+
+		d2d.SetTransform(windowId, flipTransform * oldTransform);
+	}
+
 	if (currentAnimation != nullptr)
 	{
 		d2d.DrawBitmapFrame(windowId, bitmap.Get(), destinationRect, currentAnimation->GetSourceRect(), alpha);
@@ -202,6 +229,8 @@ void Actor::RenderToOverlay(D2DManager& d2d, const WindowManager& windows) const
 	{
 		d2d.DrawBitmap(windowId, bitmap.Get(), destinationRect, alpha);
 	}
+
+	d2d.SetTransform(windowId, oldTransform); //플립을 했다면 다시 원래대로 되돌려놓기
 }
 
 D2D1_RECT_F Actor::GetDestinationRect() const

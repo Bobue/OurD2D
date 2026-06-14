@@ -48,6 +48,9 @@ public:
 
 	void ResizeRenderTarget(int windowId, UINT width, UINT height);
 
+	void GetTransform(int windowId, D2D1_MATRIX_3X2_F& outTransform);
+	void SetTransform(int windowId, const D2D1_MATRIX_3X2_F& transform);
+
 private:
 	struct WindowRenderData
 	{
