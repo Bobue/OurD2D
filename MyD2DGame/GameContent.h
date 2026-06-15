@@ -66,5 +66,11 @@ private:
 	std::vector<std::unique_ptr<Actor>> actors;
 	Actor* playerActor = nullptr;
 	Actor* playerActorRun = nullptr;
+	void MoveEnemyActor(EngineContext& engine, float deltaTime);
+	float enemyBattleStartX = 0.0f;
+	float enemyBattleStartY = 0.0f;
+	Actor* enemyActor = nullptr;
 
+	float prevEnemyClientY = -1.0f;
+	float prevEnemyClientX = -1.0f;
 };

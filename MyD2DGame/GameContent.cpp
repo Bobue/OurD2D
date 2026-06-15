@@ -81,6 +81,7 @@ void GameContent::OnStart(EngineContext& engine)
 
 	this->playerActor = playerIdle.get();
 	this->playerActorRun = playerRun.get();
+	this->enemyActor = enemyActor.get(); // 추가
 
 	actors.push_back(std::move(playerIdle));
 	actors.push_back(std::move(playerRun));
@@ -203,6 +204,11 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 					battleStartX = playerActor->GetTransform().x;
 					battleStartY = playerActor->GetTransform().y;
 				}
+				else if (actors[i].get() == enemyActor) // 추가
+				{
+					enemyBattleStartX = enemyActor->GetTransform().x;
+					enemyBattleStartY = enemyActor->GetTransform().y;
+				}
 			}
 			state = BattleState::Battle;
 		}
@@ -214,6 +220,7 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 		player.BattleFieldSystem(deltaTime);
 		enemy.BattleFieldSystem(deltaTime);
 		MovePlayerActor(engine, deltaTime);
+		MoveEnemyActor(engine, deltaTime); // 추가
 
 
 		if (input.IsKeyPressed(player.GetPlayerRegionId(), 'Z'))
@@ -269,6 +276,9 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 		else
 		{
 			playerActor->Move(dx / 0.5f * deltaTime, dy / 0.5f * deltaTime);
+			float ex = enemyBattleStartX - enemyActor->GetTransform().x;
+			float ey = enemyBattleStartY - enemyActor->GetTransform().y;
+			enemyActor->Move(ex / 0.5f * deltaTime, ey / 0.5f * deltaTime);
 		}
 		break;
 	}
@@ -412,4 +422,48 @@ void GameContent::MovePlayerActor(EngineContext& engine, float deltaTime)
 void GameContent::PlayerHitSound()
 {
 	PlaySound(L"../Resource/Shock The World.wav", nullptr, SND_FILENAME | SND_ASYNC);
+}
+
+void GameContent::MoveEnemyActor(EngineContext& engine, float deltaTime)
+{
+	auto& windows = engine.GetWindowManager();
+	auto* enemyWnd = windows.GetWindowById(enemy.GetEnemyRegionId());
+	if (enemyWnd == nullptr) return;
+
+	float currClientX = enemyWnd->GetClientX();
+	float currClientY = enemyWnd->GetClientY();
+
+	if (prevEnemyClientX >= 0.0f)
+	{
+		float diffX = currClientX - prevEnemyClientX;
+		float diffY = currClientY - prevEnemyClientY;
+
+		enemyActor->SetPosition(
+			enemyActor->GetTransform().x - diffX,
+			enemyActor->GetTransform().y - diffY
+		);
+
+
+		enemyBattleStartX -= diffX;
+		enemyBattleStartY -= diffY;
+	}
+
+	prevEnemyClientX = currClientX;
+	prevEnemyClientY = currClientY;
+
+	// 클램핑
+	RECT rect{};
+	GetWindowRect(enemyWnd->GetHwnd(), &rect);
+	float wndWidth = static_cast<float>(rect.right - rect.left);
+	float wndHeight = static_cast<float>(rect.bottom - rect.top);
+
+	float borderX = enemyWnd->GetClientX() - enemyWnd->GetX();
+	float borderY = enemyWnd->GetClientY() - enemyWnd->GetY();
+
+	float maxX = wndWidth - 100.0f - borderX * 2;
+	float maxY = wndHeight - 100.0f - borderY - borderX;
+	float clampedX = max(0.0f, min(enemyActor->GetTransform().x, maxX));
+	float clampedY = max(0.0f, min(enemyActor->GetTransform().y, maxY));
+
+	enemyActor->SetPosition(clampedX, clampedY);
 }

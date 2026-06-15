@@ -279,9 +279,11 @@ void WindowController::MoveToward(int windowId, float targetX, float targetY, fl
     wnd->MoveWindow(dirX / workWidth, dirY / workHeight, speed, deltaTime);
 }
 
+
+
 void WindowController::BattleFieldSystem(float deltaTime)
 {
-    fieldBoundary += 0.01f * deltaTime;
+    fieldBoundary += 0.1f * deltaTime;
     if (fieldBoundary > 1.0f) fieldBoundary = 1.0f;
     ResizePlayerField(fieldBoundary);
     ResizeEnemyField(fieldBoundary);
