@@ -5,7 +5,7 @@
 #include "InputManager.h"
 #include "WicManager.h"
 #include "D2DManager.h"
-
+#include <cmath>
 
 #include <Windows.h>
 
@@ -37,6 +37,7 @@ void GameContent::OnStart(EngineContext& engine)
 	// 플레이어, 적 지역 우선 생성 ( 제일 위로 올리기 위해서 )
 
 	player.SaveStartPositions(enemy.GetEnemyRegionId()); 
+
 	// 시작 위치 저장 (return to end battle)
 
 	// Render Target -> after Region Wnd Create 
@@ -67,7 +68,7 @@ void GameContent::OnStart(EngineContext& engine)
 	//투명창에 플레이어 생성
 	auto playerIdle = std::make_unique<Actor>(overlayRenderTargetId);
 	playerIdle->SetAnchorWindowId(player.GetPlayerRegionId());
-	playerIdle->InitializeSprite(engine, L"../Resource/구구가가아이들.png", -12.0f, 0.0f, 200.0f, 112.0f);
+	playerIdle->InitializeSprite(engine, L"../Resource/구구가가아이들.png", 0.0f, 0.0f, 200.0f, 112.0f);
 	playerIdle->AddAnimation(L"idle", 400, 225, 30, 6, 15.0f);
 	playerIdle->PlayAnimation(L"idle");
 	playerIdle->AddBoxCollider(75.0f, 15.0f, 50.0f, 90.0f);
@@ -75,7 +76,7 @@ void GameContent::OnStart(EngineContext& engine)
 	// run 액터
 	auto playerRun = std::make_unique<Actor>(overlayRenderTargetId);
 	playerRun->SetAnchorWindowId(player.GetPlayerRegionId());
-	playerRun->InitializeSprite(engine, L"../Resource/GUGARUN.png", -12.0f, 0.0f, 200.0f, 112.0f);
+	playerRun->InitializeSprite(engine, L"../Resource/GUGARUN.png", 0.0f, 0.0f, 200.0f, 112.0f);
 	playerRun->AddAnimation(L"run", 666, 375, 20, 20, 15.0f);
 	playerRun->PlayAnimation(L"run");
 
@@ -117,6 +118,8 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 	case BattleState::Explore:
 		// playerMove for key
 		player.MovePlayerRegion(deltaTime);
+		MovePlayerActor(engine, deltaTime, 50.0f);
+
 		player.DefaultFieldSystem(deltaTime);
 		enemy.DefaultFieldSystem(deltaTime);
 
@@ -127,6 +130,12 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 		{
 			spawnButtonManager.Clear();
 
+			battleStartX = playerActor->GetTransform().x;
+			battleStartY = playerActor->GetTransform().y;
+
+			enemyBattleStartX = enemyActor->GetTransform().x;
+			enemyBattleStartY = enemyActor->GetTransform().y;
+
 			state = BattleState::MoveToBattle;
 		}
 
@@ -134,8 +143,14 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 		// Enter key -> Move to Battle
 		if (input.IsKeyPressed(player.GetPlayerRegionId(), VK_RETURN))
 		{
-			//스폰 클리어
 			spawnButtonManager.Clear();
+
+			battleStartX = playerActor->GetTransform().x;
+			battleStartY = playerActor->GetTransform().y;
+
+			enemyBattleStartX = enemyActor->GetTransform().x;
+			enemyBattleStartY = enemyActor->GetTransform().y;
+
 			state = BattleState::MoveToBattle;
 		}
 
@@ -173,60 +188,88 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 		float heightRatio = startHeight + (endHeight - startHeight) * battleExpandT;
 		player.ResizeBattleField(heightRatio);
 
-		if (battleExpandT >= 1.0f) {
-
+		if (battleExpandT >= 1.0f)
+		{
 			auto& windows = engine.GetWindowManager();
 
-			// 1. Resize 전 절대 위치 저장
+			// 1. Resize 전 actor들의 화면 절대 위치 저장
 			std::vector<std::pair<float, float>> absolutePositions;
+
 			for (auto& actor : actors)
 			{
 				auto* anchorWnd = windows.GetWindowById(actor->GetAnchorWindowId());
-				if (anchorWnd == nullptr) { absolutePositions.push_back({ 0,0 }); continue; }
+
+				if (anchorWnd == nullptr)
+				{
+					absolutePositions.push_back({ 0.0f, 0.0f });
+					continue;
+				}
+
 				absolutePositions.push_back({
 					anchorWnd->GetClientX() + actor->GetTransform().x,
 					anchorWnd->GetClientY() + actor->GetTransform().y
 					});
 			}
 
-			// 2. Resize
+			// 2. Region battle 크기로 resize
 			player.ResizeRegionsForBattle();
-			enemy.ResizeRegionsForBattle();
 
-			// 3. Resize 후 transform 보정
-			for (int i = 0; i < actors.size(); i++)
+			// 3. Resize 후 기존 actor들은 화면 위치 유지되도록 보정
+			for (int i = 0; i < (int)actors.size(); i++)
 			{
 				auto* anchorWnd = windows.GetWindowById(actors[i]->GetAnchorWindowId());
 				if (anchorWnd == nullptr) continue;
+
 				actors[i]->SetPosition(
 					absolutePositions[i].first - anchorWnd->GetClientX(),
 					absolutePositions[i].second - anchorWnd->GetClientY()
 				);
-
-				// playerActor 배틀 시작 위치 저장
-				if (actors[i].get() == playerActor)
-				{
-					battleStartX = playerActor->GetTransform().x;
-					battleStartY = playerActor->GetTransform().y;
-				}
-				else if (actors[i].get() == enemyActor) // 추가
-				{
-					enemyBattleStartX = enemyActor->GetTransform().x;
-					enemyBattleStartY = enemyActor->GetTransform().y;
-				}
 			}
+
+			// 4. 플레이어 battle 시작 위치 저장
+			battleStartX = playerActor->GetTransform().x;
+			battleStartY = playerActor->GetTransform().y;
+
+			playerActorRun->SetPosition(battleStartX, battleStartY);
+
+			// 5. 도로롱은 enemy region 중앙으로 배치
+			auto* enemyWnd = windows.GetWindowById(enemy.GetEnemyRegionId());
+
+			if (enemyWnd != nullptr)
+			{
+				RECT rect{};
+				GetWindowRect(enemyWnd->GetHwnd(), &rect);
+
+				float borderX = enemyWnd->GetClientX() - enemyWnd->GetX();
+				float borderY = enemyWnd->GetClientY() - enemyWnd->GetY();
+
+				float wndWidth = static_cast<float>(rect.right - rect.left);
+				float wndHeight = static_cast<float>(rect.bottom - rect.top);
+
+				enemyActor->SetPosition(
+					(wndWidth - 100.0f) * 0.5f - borderX,
+					(wndHeight - 100.0f) * 0.5f - borderY
+				);
+
+				enemyBattleStartX = enemyActor->GetTransform().x;
+				enemyBattleStartY = enemyActor->GetTransform().y;
+			}
+
+			prevEnemyClientX = -1.0f;
+			prevEnemyClientY = -1.0f;
+
 			state = BattleState::Battle;
 		}
 
 		break;
 	}
-
 	case BattleState::Battle:
+
 		player.BattleFieldSystem(deltaTime);
 		enemy.BattleFieldSystem(deltaTime);
-		MovePlayerActor(engine, deltaTime);
-		MoveEnemyActor(engine, deltaTime); // 추가
 
+		CenterEnemyActor(engine, deltaTime);
+		MovePlayerActor(engine, deltaTime, 200.0f);
 
 		if (input.IsKeyPressed(player.GetPlayerRegionId(), 'Z'))
 		{
@@ -234,70 +277,144 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 			enemy.PushField(deltaTime);
 		}
 
+
+		if (input.IsKeyPressed(player.GetPlayerRegionId(), 'O'))
+		{
+			SpawnEnemyOrange(engine);
+		}
+
+		UpdateEnemyOranges(engine, deltaTime);
+
 		if (input.IsKeyPressed(player.GetPlayerRegionId(), VK_BACK))
 		{
+			oranges.clear();
+
+			returnRegionT = 1.0f;
+			returnFieldT = 1.0f;
+			regionShrinkFinished = false;
 			state = BattleState::ReturnCenter;
 		}
+
 		break;
-	
 	case BattleState::ReturnCenter:
 	{
+		CenterEnemyActor(engine, deltaTime);
+
 		float dx = battleStartX - playerActor->GetTransform().x;
 		float dy = battleStartY - playerActor->GetTransform().y;
 
-		if (abs(dx) <= 5.0f && abs(dy) <= 5.0f)
+		bool playerArrived = abs(dx) <= 5.0f && abs(dy) <= 5.0f;
+
+		bool enemyArrived = true;
+
+		auto& windows = engine.GetWindowManager();
+		auto* enemyWnd = windows.GetWindowById(enemy.GetEnemyRegionId());
+
+		if (enemyWnd != nullptr)
+		{
+			RECT rect{};
+			GetWindowRect(enemyWnd->GetHwnd(), &rect);
+
+			float borderX = enemyWnd->GetClientX() - enemyWnd->GetX();
+			float borderY = enemyWnd->GetClientY() - enemyWnd->GetY();
+
+			float wndWidth = static_cast<float>(rect.right - rect.left);
+			float wndHeight = static_cast<float>(rect.bottom - rect.top);
+
+			float targetX = (wndWidth - 100.0f) * 0.5f - borderX;
+			float targetY = (wndHeight - 100.0f) * 0.5f - borderY;
+
+			float ex = targetX - enemyActor->GetTransform().x;
+			float ey = targetY - enemyActor->GetTransform().y;
+
+			enemyArrived = abs(ex) <= 5.0f && abs(ey) <= 5.0f;
+		}
+
+		if (playerArrived && enemyArrived)
 		{
 			playerActor->SetPosition(battleStartX, battleStartY);
-
-			// 도착 -> Restore 후 Return
-			auto& windows = engine.GetWindowManager();
-			std::vector<std::pair<float, float>> absolutePositions;
-			for (auto& actor : actors)
-			{
-				auto* anchorWnd = windows.GetWindowById(actor->GetAnchorWindowId());
-				if (anchorWnd == nullptr) { absolutePositions.push_back({ 0,0 }); continue; }
-				absolutePositions.push_back({
-					anchorWnd->GetClientX() + actor->GetTransform().x,
-					anchorWnd->GetClientY() + actor->GetTransform().y
-					});
-			}
-
-			player.RestoreRegionsFromBattle();
-			enemy.RestoreRegionsFromBattle();
-
-			for (int i = 0; i < (int)actors.size(); i++)
-			{
-				auto* anchorWnd = windows.GetWindowById(actors[i]->GetAnchorWindowId());
-				if (anchorWnd == nullptr) continue;
-				actors[i]->SetPosition(
-					absolutePositions[i].first - anchorWnd->GetClientX(),
-					absolutePositions[i].second - anchorWnd->GetClientY()
-				);
-			}
-
-			battleExpandT = 1.0f;
 			state = BattleState::Return;
 		}
-		else
+		else if (!playerArrived)
 		{
 			playerActor->Move(dx / 0.5f * deltaTime, dy / 0.5f * deltaTime);
-			float ex = enemyBattleStartX - enemyActor->GetTransform().x;
-			float ey = enemyBattleStartY - enemyActor->GetTransform().y;
-			enemyActor->Move(ex / 0.5f * deltaTime, ey / 0.5f * deltaTime);
 		}
+
+		playerActorRun->SetPosition(
+			playerActor->GetTransform().x,
+			playerActor->GetTransform().y
+		);
+
 		break;
 	}
 
 	case BattleState::Return:
 	{
 		battleExpandT -= battleExpandSpeed * deltaTime;
-
 		if (battleExpandT < 0.0f) battleExpandT = 0.0f;
 
-		float startHeight = 0.01f;
-		float endHeight = 0.75f;
-		float heightRatio = startHeight + (endHeight - startHeight) * battleExpandT;
-		player.ResizeBattleField(heightRatio);
+		auto& windows = engine.GetWindowManager();
+
+		// ------------------------
+		// 1단계 : Region 축소
+		// ------------------------
+
+		float regionWidth = 0.1f + (0.3f - 0.1f) * battleExpandT;
+		float regionHeight = 0.15f + (0.5f - 0.15f) * battleExpandT;
+
+		auto* playerWnd = windows.GetWindowById(player.GetPlayerRegionId());
+
+		if (playerWnd != nullptr)
+		{
+			float absX = playerWnd->GetClientX() + playerActor->GetTransform().x;
+			float absY = playerWnd->GetClientY() + playerActor->GetTransform().y;
+
+			playerWnd->ResizeWindowToMonitorRatio(
+				playerWnd->GetHwnd(),
+				regionWidth,
+				regionHeight,
+				0.5f,
+				0.2f
+			);
+
+			playerActor->SetPosition(
+				absX - playerWnd->GetClientX(),
+				absY - playerWnd->GetClientY()
+			);
+
+			playerActorRun->SetPosition(
+				playerActor->GetTransform().x,
+				playerActor->GetTransform().y
+			);
+		}
+
+		auto* enemyWnd = windows.GetWindowById(enemy.GetEnemyRegionId());
+
+		if (enemyWnd != nullptr)
+		{
+			float absX = enemyWnd->GetClientX() + enemyActor->GetTransform().x;
+			float absY = enemyWnd->GetClientY() + enemyActor->GetTransform().y;
+
+			enemyWnd->ResizeWindowToMonitorRatio(
+				enemyWnd->GetHwnd(),
+				regionWidth,
+				regionHeight,
+				0.5f,
+				0.75f
+			);
+
+			enemyActor->SetPosition(
+				absX - enemyWnd->GetClientX(),
+				absY - enemyWnd->GetClientY()
+			);
+
+			CenterEnemyActor(engine, deltaTime);
+		}
+
+		// ------------------------
+		// Region 다 줄어든 뒤
+		// BattleField 축소 시작
+		// ------------------------
 
 		if (battleExpandT <= 0.0f)
 		{
@@ -305,9 +422,9 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 			battleFieldCreated = false;
 			state = BattleState::ReturnExplore;
 		}
+
 		break;
 	}
-
 
 	case BattleState::ReturnExplore:
 
@@ -349,6 +466,19 @@ void GameContent::OnRender(EngineContext& engine)
 			actor->RenderColliderToOverlay(d2d, windows);
 		}
 	}
+	for (auto& orange : oranges)
+	{
+		auto& d2d = engine.GetD2DManager();
+		auto& windows = engine.GetWindowManager();
+		orange.actor->RenderToOverlay(d2d, windows);
+		if (showCollider)  // 오버레이 좌표 이용해서 따로 생성
+		{
+			D2D1_RECT_F rect =
+				orange.actor->GetBoxCollider().GetWorldRect(*orange.actor);
+
+			d2d.DrawRectangle(overlayRenderTargetId, rect);
+		}
+	}
 
 	// isMoving에 따라 하나만 렌더
 	if (isMoving)
@@ -367,6 +497,8 @@ void GameContent::OnRender(EngineContext& engine)
 	{
 		overlay->Present();
 	}
+	
+
 	d2d.BeginDraw(player.GetPlayerFieldId());
 	d2d.Clear(player.GetPlayerFieldId(), D2D1::ColorF(0.0f, 0.0f, 1.0f, 1.0f)); // blue
 	d2d.EndDraw(player.GetPlayerFieldId());
@@ -383,29 +515,129 @@ void GameContent::OnEnd(EngineContext& engine)
 	playerActor = nullptr;
 }
 
-void GameContent::MovePlayerActor(EngineContext& engine, float deltaTime)
+void GameContent::UpdateEnemyOranges(EngineContext& engine, float deltaTime)
+{
+	for (auto& orange : oranges)
+	{
+		if (orange.falling)
+		{
+			orange.actor->Move(0.0f, orange.fallSpeed * deltaTime);
+			continue;
+		}
+
+		orange.elapsed += deltaTime;
+
+		float t = orange.elapsed / orange.duration;
+
+		if (t >= 1.0f)
+		{
+			orange.falling = true;
+			orange.actor->Move(0.0f, orange.fallSpeed * deltaTime);
+			continue;
+		}
+
+		float x = orange.startX + (orange.targetX - orange.startX) * t;
+		float y = orange.startY + (orange.targetY - orange.startY) * t
+			- orange.arcHeight * sinf(t * 3.141592f);
+
+		orange.actor->SetPosition(x, y);
+		D2D1_RECT_F orangeRect =
+			orange.actor->GetBoxCollider().GetWorldRect(*orange.actor);
+
+		D2D1_RECT_F playerRect =
+			playerActor->GetColliderOverlayRect(engine.GetWindowManager());
+
+		bool isHit =
+			orangeRect.left < playerRect.right &&
+			orangeRect.right > playerRect.left &&
+			orangeRect.top < playerRect.bottom &&
+			orangeRect.bottom > playerRect.top;
+
+		if (isHit && !orange.hasHitPlayer)
+		{
+			orange.hasHitPlayer = true;
+
+			player.ApplyFieldPenalty(0.01f);
+			enemy.ApplyFieldPenalty(0.01f);
+		}
+	}
+}
+
+void GameContent::SpawnEnemyOrange(EngineContext& engine)
+{
+	if (enemyActor == nullptr || playerActor == nullptr)
+	{
+		return;
+	}
+
+	auto& windows = engine.GetWindowManager();
+
+	D2D1_RECT_F enemyRect = enemyActor->GetColliderOverlayRect(windows);
+	D2D1_RECT_F playerRect = playerActor->GetColliderOverlayRect(windows);
+
+	float orangeWidth = 50.0f;
+	float orangeHeight = 50.0f;
+
+	float startX = (enemyRect.left + enemyRect.right) * 0.5f - orangeWidth * 0.5f;
+	float startY = (enemyRect.top + enemyRect.bottom) * 0.5f - orangeHeight * 0.5f;
+
+	float targetX = (playerRect.left + playerRect.right) * 0.5f - orangeWidth * 0.5f;
+	float targetY = (playerRect.top + playerRect.bottom) * 0.5f - orangeHeight * 0.5f;
+
+	EnemyOrange orange;
+	orange.actor = std::make_unique<Actor>(overlayRenderTargetId);
+
+	orange.actor->InitializeSprite(
+		engine,
+		L"../Resource/귤.png",
+		startX,
+		startY,
+		orangeWidth,
+		orangeHeight
+	);
+
+	orange.actor->AddBoxCollider(
+		10.0f,
+		10.0f,
+		orangeWidth - 20.0f,
+		orangeHeight - 20.0f
+	);
+
+	orange.startX = startX;
+	orange.startY = startY;
+
+	targetX += static_cast<float>((rand() % 121) - 60);
+	targetY += static_cast<float>((rand() % 81) - 40);
+	orange.targetX = targetX;
+	orange.targetY = targetY;
+	orange.arcHeight = static_cast<float>((rand() % 151) + 120);
+
+	oranges.push_back(std::move(orange));
+}
+
+void GameContent::MovePlayerActor(EngineContext& engine, float deltaTime, float moveSpeed)
 {
 	auto& input = engine.GetInputManager();
 	bool moving = false;
 
 	if (input.IsKeyDown(player.GetPlayerRegionId(), VK_UP))
 	{
-		playerActor->Move(0, -200.0f * deltaTime); moving = true;
+		playerActor->Move(0, -moveSpeed * deltaTime); moving = true;
 	}
 	if (input.IsKeyDown(player.GetPlayerRegionId(), VK_DOWN))
 	{
-		playerActor->Move(0, 200.0f * deltaTime); moving = true;
+		playerActor->Move(0, moveSpeed * deltaTime); moving = true;
 	}
 	if (input.IsKeyDown(player.GetPlayerRegionId(), VK_LEFT))
 	{
 		playerActorRun->SetFlipx(false);
-		playerActor->Move(-200.0f * deltaTime, 0); moving = true;
+		playerActor->Move(-moveSpeed * deltaTime, 0); moving = true;
 	}
 
 	if (input.IsKeyDown(player.GetPlayerRegionId(), VK_RIGHT))
 	{
 		playerActorRun->SetFlipx(true);
-		playerActor->Move(200.0f * deltaTime, 0); moving = true;
+		playerActor->Move(moveSpeed * deltaTime, 0); moving = true;
 	}
 	isMoving = moving;
 	playerActorRun->SetPosition(playerActor->GetTransform().x, playerActor->GetTransform().y);
@@ -451,14 +683,7 @@ void GameContent::MoveEnemyActor(EngineContext& engine, float deltaTime)
 		float diffX = currClientX - prevEnemyClientX;
 		float diffY = currClientY - prevEnemyClientY;
 
-		enemyActor->SetPosition(
-			enemyActor->GetTransform().x - diffX,
-			enemyActor->GetTransform().y - diffY
-		);
-
-
-		enemyBattleStartX -= diffX;
-		enemyBattleStartY -= diffY;
+		//enemyActor->Move(-diffX, -diffY);
 	}
 
 	prevEnemyClientX = currClientX;
@@ -479,4 +704,48 @@ void GameContent::MoveEnemyActor(EngineContext& engine, float deltaTime)
 	float clampedY = max(0.0f, min(enemyActor->GetTransform().y, maxY));
 
 	enemyActor->SetPosition(clampedX, clampedY);
+}
+
+void GameContent::CenterEnemyActor(EngineContext& engine, float deltaTime)
+{
+    auto& windows = engine.GetWindowManager();
+    auto* enemyWnd = windows.GetWindowById(enemy.GetEnemyRegionId());
+    if (enemyWnd == nullptr) return;
+
+    RECT rect{};
+    GetWindowRect(enemyWnd->GetHwnd(), &rect);
+
+    float borderX = enemyWnd->GetClientX() - enemyWnd->GetX();
+    float borderY = enemyWnd->GetClientY() - enemyWnd->GetY();
+
+    float wndWidth = static_cast<float>(rect.right - rect.left);
+    float wndHeight = static_cast<float>(rect.bottom - rect.top);
+
+    float targetX = (wndWidth - 100.0f) * 0.5f - borderX;
+    float targetY = (wndHeight - 100.0f) * 0.5f - borderY;
+
+    float x = enemyActor->GetTransform().x;
+    float y = enemyActor->GetTransform().y;
+
+    float dx = targetX - x;
+    float dy = targetY - y;
+
+    float dist = sqrtf(dx * dx + dy * dy);
+    if (dist <= 1.0f)
+    {
+        enemyActor->SetPosition(targetX, targetY);
+        return;
+    }
+
+    float speed = 300.0f;
+    float move = speed * deltaTime;
+
+    if (move >= dist)
+    {
+        enemyActor->SetPosition(targetX, targetY);
+    }
+    else
+    {
+        enemyActor->Move(dx / dist * move, dy / dist * move);
+    }
 }

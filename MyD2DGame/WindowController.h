@@ -58,6 +58,8 @@ public:
 	void PushField(float deltaTime);
 	void ResizeRegionsForBattleField(float boundary);
 
+	// 귤에 맞았을경우 체력 줄게 하기
+	void ApplyFieldPenalty(float amount);
 private :
 	// windowId -> targetX,targetY -> speed Move function (windowId -> wnd -> move)
 	void MoveToward(int wndId, float targetX, float targetY, float speed, float deltaTime);

@@ -283,7 +283,7 @@ void WindowController::MoveToward(int windowId, float targetX, float targetY, fl
 
 void WindowController::BattleFieldSystem(float deltaTime)
 {
-    fieldBoundary += 0.1f * deltaTime;
+    fieldBoundary += 0.01f * deltaTime;
     if (fieldBoundary > 1.0f) fieldBoundary = 1.0f;
     ResizePlayerField(fieldBoundary);
     ResizeEnemyField(fieldBoundary);
@@ -293,7 +293,7 @@ void WindowController::BattleFieldSystem(float deltaTime)
 
 void WindowController::PushField(float deltaTime)
 {
-    fieldBoundary -= 0.1f * deltaTime;
+    fieldBoundary -= 0.5f * deltaTime;
     if (fieldBoundary < 0.0f) fieldBoundary = 0.0f;
     ResizePlayerField(fieldBoundary);
     ResizeEnemyField(fieldBoundary);
@@ -324,6 +324,21 @@ void WindowController::ResizeRegionsForBattleField(float boundary)
             0.3f, enemyHeight, 0.5f, enemyY
         );
 }
+
+void WindowController::ApplyFieldPenalty(float amount)
+{
+    fieldBoundary += amount;
+
+    if (fieldBoundary < 0.0f)
+    {
+        fieldBoundary = 0.0f;
+    }
+
+    ResizePlayerField(fieldBoundary);
+    ResizeEnemyField(fieldBoundary);
+    ResizeRegionsForBattleField(fieldBoundary);
+}
+
 
 
 
