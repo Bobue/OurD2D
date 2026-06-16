@@ -28,12 +28,16 @@ bool AudioManager::PlayBGM(const std::wstring& filePath)
 
 	if (openResult != 0)
 	{
+		wchar_t errorText[256]{};
+		mciGetErrorStringW(openResult, errorText, 256);
+		MessageBoxW(nullptr, errorText, L"MCI open failed", MB_OK);
+
 		m_isBGMPlaying = false;
 		return false;
 	}
 
 	MCIERROR playResult = mciSendString(
-		L"play bgm repeat",
+		L"play bgm",
 		nullptr,
 		0,
 		nullptr
@@ -41,7 +45,11 @@ bool AudioManager::PlayBGM(const std::wstring& filePath)
 
 	if (playResult != 0)
 	{
-		mciSendString(L"close bgm", nullptr, 0, nullptr);
+		wchar_t errorText[256]{};
+		mciGetErrorStringW(playResult, errorText, 256);
+		MessageBoxW(nullptr, errorText, L"MCI play failed", MB_OK);
+
+		mciSendStringW(L"close bgm", nullptr, 0, nullptr);
 		m_isBGMPlaying = false;
 		return false;
 	}
