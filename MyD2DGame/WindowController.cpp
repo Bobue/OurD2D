@@ -144,8 +144,8 @@ void WindowController::ResizeRegionsForBattle()
     if (playerWnd != nullptr)
         playerWnd->ResizeWindowToMonitorRatio(
             playerWnd->GetHwnd(),
-            0.3f, 0.375f,
-            0.5f, 0.3125f
+            0.3f, 0.5,
+            0.5f, 0.25f
         );
 
     // player region = BattleField 아래 절반
@@ -153,8 +153,8 @@ void WindowController::ResizeRegionsForBattle()
     if (enemyWnd != nullptr)
         enemyWnd->ResizeWindowToMonitorRatio(
             enemyWnd->GetHwnd(),
-            0.3f, 0.375f,
-            0.5f, 0.6875f
+            0.3f, 0.5f,
+            0.5f, 0.75f
         );
 }
 
@@ -279,21 +279,68 @@ void WindowController::MoveToward(int windowId, float targetX, float targetY, fl
     wnd->MoveWindow(dirX / workWidth, dirY / workHeight, speed, deltaTime);
 }
 
+
+
 void WindowController::BattleFieldSystem(float deltaTime)
 {
-    fieldBoundary += 0.01f * deltaTime; // 속도 조절
+    fieldBoundary += 0.01f * deltaTime;
     if (fieldBoundary > 1.0f) fieldBoundary = 1.0f;
     ResizePlayerField(fieldBoundary);
     ResizeEnemyField(fieldBoundary);
+    ResizeRegionsForBattleField(fieldBoundary);
+
 }
 
 void WindowController::PushField(float deltaTime)
 {
-    fieldBoundary -= 0.085f * deltaTime;
+    fieldBoundary -= 0.5f * deltaTime;
     if (fieldBoundary < 0.0f) fieldBoundary = 0.0f;
     ResizePlayerField(fieldBoundary);
     ResizeEnemyField(fieldBoundary);
+    ResizeRegionsForBattleField(fieldBoundary);
 }
+
+void WindowController::ResizeRegionsForBattleField(float boundary)
+{
+    auto& windows = context->GetWindowManager();
+    auto* playerWnd = windows.GetWindowById(playerRegionId);
+    auto* enemyWnd = windows.GetWindowById(enemyRegionId);
+
+    float playerHeight = boundary;           // enemyField 크기
+    float playerY = boundary / 2.0f;
+
+    float enemyHeight = 1.0f - boundary;    // playerField 크기
+    float enemyY = (1.0f - boundary) / 2.0f + boundary; // playerField 중심
+
+    if (playerWnd != nullptr)
+        playerWnd->ResizeWindowToMonitorRatio(
+            playerWnd->GetHwnd(),
+            0.3f, playerHeight, 0.5f, playerY
+        );
+
+    if (enemyWnd != nullptr)
+        enemyWnd->ResizeWindowToMonitorRatio(
+            enemyWnd->GetHwnd(),
+            0.3f, enemyHeight, 0.5f, enemyY
+        );
+}
+
+void WindowController::ApplyFieldPenalty(float amount)
+{
+    fieldBoundary += amount;
+
+    if (fieldBoundary < 0.0f)
+    {
+        fieldBoundary = 0.0f;
+    }
+
+    ResizePlayerField(fieldBoundary);
+    ResizeEnemyField(fieldBoundary);
+    ResizeRegionsForBattleField(fieldBoundary);
+}
+
+
+
 
 void WindowController::DefaultFieldSystem(float deltaTime)
 {
@@ -359,6 +406,7 @@ void WindowController::ClampRegionsToField()
 
 // based on boundary -> player field resize
 // boundary size up -> player field size down
+
 void WindowController::ResizePlayerField(float boundary)
 {
     auto& windows = context->GetWindowManager();
