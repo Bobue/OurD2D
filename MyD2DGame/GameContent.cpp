@@ -117,6 +117,11 @@ void GameContent::OnStart(EngineContext& engine)
 
 	d2d.CreateRenderTargetForWindow(player.GetPlayerFieldId(), playerFieldWnd->GetHwnd());
 	d2d.CreateRenderTargetForWindow(enemy.GetEnemyFieldId(), enemyFieldWnd->GetHwnd());
+
+	if (!audiomanger.PlayBGM(L"../Resource/평시.wav"))
+	{
+		MessageBoxW(nullptr, L"BGM 재생 실패", L"Audio Error", MB_OK);
+	}
 }
 
 void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
@@ -127,6 +132,7 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 	if (input.IsKeyPressed(player.GetPlayerRegionId(), VK_F1))
 	{
 		showCollider = !showCollider;
+		//audiomanger.PlayBGM(L"../Resource/평시.wav");
 	}
 
 	switch (state) {
@@ -167,6 +173,7 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 
 		UpdateEnemyOranges(engine, deltaTime);
 
+		//audiomanger.PlayBGM(L"../Resource/평시.wav");
 		//스폰업데이트
 		spawnButtonManager.Update(engine, deltaTime);
 
@@ -206,7 +213,7 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 
 	case BattleState::MoveToBattle:
 
-
+		audiomanger.PlayBGM(L"../Resource/줄다리기.wav");
 		// player, enemy move to battle region
 		player.BattleRegion(deltaTime, enemy.GetEnemyRegionId());
 		// battle region arrived -> Change Expand Battle (BattleState)
@@ -359,6 +366,7 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 	}
 	case BattleState::ReturnCenter:
 	{
+
 		CenterEnemyActor(engine, deltaTime);
 
 		float dx = battleStartX - playerActor->GetTransform().x;
@@ -411,6 +419,7 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 
 	case BattleState::Return:
 	{
+		audiomanger.PlayBGM(L"../Resource/평시.wav");
 		battleExpandT -= battleExpandSpeed * deltaTime;
 		if (battleExpandT < 0.0f) battleExpandT = 0.0f;
 
