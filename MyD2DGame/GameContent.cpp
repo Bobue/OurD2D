@@ -290,11 +290,20 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 			SpawnEnemyOrange(engine);
 		}
 
+		spearCooldown -= deltaTime;
+		if (input.IsKeyPressed(player.GetPlayerRegionId(), 'X') && spearCooldown <= 0.0f)
+		{
+			SpawnPlayerSpear(engine);
+			spearCooldown = 0.5f;
+		}
+
 		UpdateEnemyOranges(engine, deltaTime);
+		UpdatePlayerSpears(engine, deltaTime);
 
 		if (input.IsKeyPressed(player.GetPlayerRegionId(), VK_BACK))
 		{
 			oranges.clear();
+			spears.clear();
 
 			returnRegionT = 1.0f;
 			returnFieldT = 1.0f;
@@ -488,6 +497,15 @@ void GameContent::OnRender(EngineContext& engine)
 			d2d.DrawRectangle(overlayRenderTargetId, rect);
 		}
 	}
+	for (auto& spear : spears)
+	{
+		spear.actor->RenderToOverlay(d2d, windows);
+		if (showCollider)
+		{
+			D2D1_RECT_F rect = spear.actor->GetBoxCollider().GetWorldRect(*spear.actor);
+			d2d.DrawRectangle(overlayRenderTargetId, rect);
+		}
+	}
 
 	// isMoving에 따라 하나만 렌더
 	if (isMoving)
@@ -520,8 +538,19 @@ void GameContent::OnRender(EngineContext& engine)
 
 void GameContent::OnEnd(EngineContext& engine)
 {
+	oranges.clear();
+	spears.clear();
+	spawnButtonManager.Clear();
+
 	actors.clear();
 	playerActor = nullptr;
+	playerActorRun = nullptr;
+	enemyActor = nullptr;
+
+	auto& d2d = engine.GetD2DManager();
+	d2d.RemoveRenderTarget(overlayRenderTargetId);
+	d2d.RemoveRenderTarget(player.GetPlayerFieldId());
+	d2d.RemoveRenderTarget(enemy.GetEnemyFieldId());
 }
 
 void GameContent::UpdateEnemyOranges(EngineContext& engine, float deltaTime)
@@ -713,6 +742,85 @@ void GameContent::MoveEnemyActor(EngineContext& engine, float deltaTime)
 	float clampedY = max(0.0f, min(enemyActor->GetTransform().y, maxY));
 
 	enemyActor->SetPosition(clampedX, clampedY);
+}
+
+void GameContent::SpawnPlayerSpear(EngineContext& engine)
+{
+	auto& windows = engine.GetWindowManager();
+	auto* playerFieldWnd = windows.GetWindowById(player.GetPlayerFieldId());
+	if (playerFieldWnd == nullptr) return;
+
+	auto* overlay = windows.GetOverlayWindow();
+	if (overlay == nullptr) return;
+
+	float spearWidth = 100.0f;
+	float spearHeight = 100.0f;
+
+	auto* battleFieldWnd = windows.GetWindowById(player.GetBattleFieldId());
+	if (battleFieldWnd == nullptr) return;
+
+	float overlayX = static_cast<float>(overlay->GetX());
+	float overlayY = static_cast<float>(overlay->GetY());
+
+	float playerFieldLeft  = playerFieldWnd->GetClientX() - overlayX;
+	float playerFieldRight = playerFieldLeft + playerFieldWnd->GetWidth();
+	float fieldTop         = playerFieldWnd->GetClientY() - overlayY;
+	float fieldBottom      = fieldTop + playerFieldWnd->GetHeight();
+
+	float battleFieldLeft  = battleFieldWnd->GetClientX() - overlayX;
+	float battleFieldRight = battleFieldLeft + battleFieldWnd->GetWidth();
+
+	// 왼쪽: battlefield 좌측끝 ~ playerfield 좌측끝 중간
+	float leftX  = (battleFieldLeft + playerFieldLeft) * 0.5f - spearWidth * 0.5f;
+	// 오른쪽: playerfield 우측끝 ~ battlefield 우측끝 중간
+	float rightX = (playerFieldRight + battleFieldRight) * 0.5f - spearWidth * 0.5f;
+	float startY = fieldBottom - spearHeight;
+
+	PlayerSpear leftSpear;
+	leftSpear.actor = std::make_unique<Actor>(overlayRenderTargetId);
+	leftSpear.actor->InitializeSprite(engine, L"../Resource/구구가가파도.png", leftX, startY, spearWidth, spearHeight);
+	leftSpear.actor->AddBoxCollider(0.0f, 0.0f, spearWidth, spearHeight);
+	spears.push_back(std::move(leftSpear));
+
+	PlayerSpear rightSpear;
+	rightSpear.actor = std::make_unique<Actor>(overlayRenderTargetId);
+	rightSpear.actor->InitializeSprite(engine, L"../Resource/구구가가파도.png", rightX, startY, spearWidth, spearHeight);
+	rightSpear.actor->AddBoxCollider(0.0f, 0.0f, spearWidth, spearHeight);
+	spears.push_back(std::move(rightSpear));
+}
+
+void GameContent::UpdatePlayerSpears(EngineContext& engine, float deltaTime)
+{
+	auto& windows = engine.GetWindowManager();
+	auto* playerFieldWnd = windows.GetWindowById(player.GetPlayerFieldId());
+
+	for (auto& spear : spears)
+	{
+		if (spear.hasHitEnemyField) continue;
+
+		spear.actor->Move(0.0f, -spear.speed * deltaTime);
+
+		auto* overlay = windows.GetOverlayWindow();
+		if (playerFieldWnd != nullptr && overlay != nullptr)
+		{
+			D2D1_RECT_F spearRect = spear.actor->GetBoxCollider().GetWorldRect(*spear.actor);
+			float playerFieldTop = playerFieldWnd->GetClientY() - overlay->GetY();
+
+			if (spearRect.top <= playerFieldTop)
+			{
+				spear.hasHitEnemyField = true;
+				player.PushField(deltaTime);
+				enemy.PushField(deltaTime);
+			}
+		}
+	}
+
+	spears.erase(
+		std::remove_if(spears.begin(), spears.end(), [](const PlayerSpear& s) {
+			return s.hasHitEnemyField;
+		}),
+		spears.end()
+	);
 }
 
 void GameContent::CenterEnemyActor(EngineContext& engine, float deltaTime)

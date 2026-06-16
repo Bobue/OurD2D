@@ -47,6 +47,17 @@ private:
 	float enemyAttackTimer = 0.0f;
 	float enemyAttackInterval = 1.5f;
 	void SpawnEnemyOrange(EngineContext& engine);
+
+	struct PlayerSpear // 플레이어 창 구조체
+	{
+		std::unique_ptr<Actor> actor;
+		float speed = 600.0f;
+		bool hasHitEnemyField = false;
+	};
+	std::vector<PlayerSpear> spears;
+	void UpdatePlayerSpears(EngineContext& engine, float deltaTime);
+	void SpawnPlayerSpear(EngineContext& engine);
+	float spearCooldown = 0.0f;
 	// 
 
 	int mainWindowId = -1; // Main Render (Now Don't Use)
