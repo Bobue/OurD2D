@@ -304,6 +304,7 @@ void GameWindow::ResizeWindowToMonitorRatio(HWND hwnd, double widthRatio, double
 
 
 	SetWindowPos(hwnd, nullptr, locationWidth, locationHeigh, targetWidth, targetHeight, SWP_NOZORDER | SWP_NOACTIVATE);
+	RefreshWindowCacheFromHwnd();
 }
 
 void GameWindow::UpdateRect()

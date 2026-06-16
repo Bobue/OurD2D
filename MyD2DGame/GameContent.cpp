@@ -191,6 +191,8 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 			battleFieldCreated = true;
 		}
 
+		CenterEnemyActor(engine, deltaTime);
+
 		battleExpandT += battleExpandSpeed * deltaTime;
 		if (battleExpandT > 1.0f) battleExpandT = 1.0f;
 
@@ -225,9 +227,11 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 			// 2. Region battle 크기로 resize
 			player.ResizeRegionsForBattle();
 
-			// 3. Resize 후 기존 actor들은 화면 위치 유지되도록 보정
+			// 3. Resize 후 기존 actor들은 화면 위치 유지되도록 보정 (enemyActor 제외 - CenterEnemyActor가 처리)
 			for (int i = 0; i < (int)actors.size(); i++)
 			{
+				if (actors[i].get() == enemyActor) continue;
+
 				auto* anchorWnd = windows.GetWindowById(actors[i]->GetAnchorWindowId());
 				if (anchorWnd == nullptr) continue;
 
@@ -243,28 +247,6 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 
 			playerActorRun->SetPosition(battleStartX, battleStartY);
 
-			// 5. 도로롱은 enemy region 중앙으로 배치
-			auto* enemyWnd = windows.GetWindowById(enemy.GetEnemyRegionId());
-
-			if (enemyWnd != nullptr)
-			{
-				RECT rect{};
-				GetWindowRect(enemyWnd->GetHwnd(), &rect);
-
-				float borderX = enemyWnd->GetClientX() - enemyWnd->GetX();
-				float borderY = enemyWnd->GetClientY() - enemyWnd->GetY();
-
-				float wndWidth = static_cast<float>(rect.right - rect.left);
-				float wndHeight = static_cast<float>(rect.bottom - rect.top);
-
-				enemyActor->SetPosition(
-					(wndWidth - 100.0f) * 0.5f - borderX,
-					(wndHeight - 100.0f) * 0.5f - borderY
-				);
-
-				enemyBattleStartX = enemyActor->GetTransform().x;
-				enemyBattleStartY = enemyActor->GetTransform().y;
-			}
 
 			prevEnemyClientX = -1.0f;
 			prevEnemyClientY = -1.0f;
@@ -275,9 +257,29 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 		break;
 	}
 	case BattleState::Battle:
+	{
+		auto& windows = engine.GetWindowManager();
+		auto* enemyWnd = windows.GetWindowById(enemy.GetEnemyRegionId());
+
+		// 리사이즈 전 도로롱 절대 위치 저장
+		float enemyAbsX = 0.0f, enemyAbsY = 0.0f;
+		if (enemyWnd != nullptr)
+		{
+			enemyAbsX = enemyWnd->GetClientX() + enemyActor->GetTransform().x;
+			enemyAbsY = enemyWnd->GetClientY() + enemyActor->GetTransform().y;
+		}
 
 		player.BattleFieldSystem(deltaTime);
 		enemy.BattleFieldSystem(deltaTime);
+
+		// 리사이즈 후 절대 위치 복원
+		if (enemyWnd != nullptr)
+		{
+			enemyActor->SetPosition(
+				enemyAbsX - enemyWnd->GetClientX(),
+				enemyAbsY - enemyWnd->GetClientY()
+			);
+		}
 
 		CenterEnemyActor(engine, deltaTime);
 		MovePlayerActor(engine, deltaTime, 200.0f);
@@ -316,6 +318,7 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 		}
 
 		break;
+	}
 	case BattleState::ReturnCenter:
 	{
 		CenterEnemyActor(engine, deltaTime);
