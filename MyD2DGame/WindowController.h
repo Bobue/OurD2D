@@ -53,7 +53,7 @@ public:
 	// Default Field (Enemy field size up, player size down)
 	void DefaultFieldSystem(float deltaTime);
 	void ClampRegionsToField();
-	void ResetEnemyRegionClamp() { enemyRegionInitialY = -1.0f; }
+	void ResetEnemyRegionClamp() { }
 
 	void BattleFieldSystem(float deltaTime);
 	void PushField(float deltaTime);
@@ -93,6 +93,5 @@ protected:
 	
 	float fieldBoundary = 0.50f;  // ��輱 Y ���� (0~1), �� �ϳ��� �� �ʵ� ũ�� ����
 
-	float enemyRegionInitialY = -1.0f; // explore 시작 시 enemy region의 초기 Y (픽셀), -1=초기화 안됨
 
 };

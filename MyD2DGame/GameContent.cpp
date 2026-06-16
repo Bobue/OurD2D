@@ -80,13 +80,28 @@ void GameContent::OnStart(EngineContext& engine)
 	playerRun->AddAnimation(L"run", 666, 375, 20, 20, 15.0f);
 	playerRun->PlayAnimation(L"run");
 
+	// 도로롱 걷기 액터 (Explore 전용)
+	auto enemyActorWalkPtr = std::make_unique<Actor>(overlayRenderTargetId);
+	enemyActorWalkPtr->SetAnchorWindowId(enemy.GetEnemyRegionId());
+	enemyActorWalkPtr->InitializeSprite(engine, L"../Resource/도로롱_걷기.png", 40.0f, 0.0f, 130.0f, 130.0f);
+	enemyActorWalkPtr->AddAnimation(L"도로롱_걷기", 177, 206, 8, 8, 15.0f);
+	enemyActorWalkPtr->PlayAnimation(L"도로롱_걷기");
+
 	this->playerActor = playerIdle.get();
 	this->playerActorRun = playerRun.get();
-	this->enemyActor = enemyActor.get(); // 추가
+	this->enemyActor = enemyActor.get();
+	this->enemyActorWalk = enemyActorWalkPtr.get();
+
+	// 초기 이동 방향 랜덤 대각선 (4대각선 중 하나)
+	float speedX = 150.0f, speedY = 300.0f;
+	enemyRegionVelX = (rand() % 2 == 0) ?  speedX : -speedX;
+	enemyRegionVelY = (rand() % 2 == 0) ?  speedY : -speedY;
+	if (enemyActorWalk) enemyActorWalk->SetFlipx(enemyRegionVelX > 0.0f);
 
 	actors.push_back(std::move(playerIdle));
 	actors.push_back(std::move(playerRun));
 	actors.push_back(std::move(enemyActor));
+	actors.push_back(std::move(enemyActorWalkPtr));
 
 
 	//스폰 매니저
@@ -122,12 +137,32 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 
 		player.DefaultFieldSystem(deltaTime);
 		enemy.DefaultFieldSystem(deltaTime);
+		UpdateEnemyExplore(engine, deltaTime);
+
+		// 플레이어 이동 속도 추정
+		if (playerActor != nullptr)
+		{
+			auto& windows = engine.GetWindowManager();
+			auto* anchor = windows.GetWindowById(player.GetPlayerRegionId());
+			if (anchor != nullptr)
+			{
+				float curX = anchor->GetClientX() + playerActor->GetTransform().x;
+				float curY = anchor->GetClientY() + playerActor->GetTransform().y;
+				if (prevPlayerOverlayX >= 0.0f)
+				{
+					playerVelX = (curX - prevPlayerOverlayX) / deltaTime;
+					playerVelY = (curY - prevPlayerOverlayY) / deltaTime;
+				}
+				prevPlayerOverlayX = curX;
+				prevPlayerOverlayY = curY;
+			}
+		}
 
 		enemyAttackTimer -= deltaTime;
 		if (enemyAttackTimer <= 0.0f)
 		{
 			SpawnEnemyOrange(engine);
-			enemyAttackTimer = 0.3f + static_cast<float>(rand()) / RAND_MAX * 0.4f;
+			enemyAttackTimer = 0.15f + static_cast<float>(rand()) / RAND_MAX * 0.2f;
 		}
 
 		UpdateEnemyOranges(engine, deltaTime);
@@ -251,6 +286,7 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 			prevEnemyClientX = -1.0f;
 			prevEnemyClientY = -1.0f;
 
+			battleTimer = 20.0f;
 			state = BattleState::Battle;
 		}
 
@@ -300,13 +336,15 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 		if (input.IsKeyPressed(player.GetPlayerRegionId(), 'X') && spearCooldown <= 0.0f)
 		{
 			SpawnPlayerSpear(engine);
-			spearCooldown = 0.5f;
+			spearCooldown = 10.0f;
 		}
 
 		UpdateEnemyOranges(engine, deltaTime);
 		UpdatePlayerSpears(engine, deltaTime);
 
-		if (input.IsKeyPressed(player.GetPlayerRegionId(), VK_BACK))
+		battleTimer -= deltaTime;
+
+		if (battleTimer <= 0.0f || input.IsKeyPressed(player.GetPlayerRegionId(), VK_BACK))
 		{
 			oranges.clear();
 			spears.clear();
@@ -484,6 +522,9 @@ void GameContent::OnRender(EngineContext& engine)
 	for (auto& actor : actors)
 	{
 		if (actor.get() == playerActor || actor.get() == playerActorRun) continue;
+		// Explore: walk 액터만, 그 외: idle 액터만
+		if (state == BattleState::Explore && actor.get() == enemyActor) continue;
+		if (state != BattleState::Explore && actor.get() == enemyActorWalk) continue;
 		actor->RenderToOverlay(d2d, windows);
 
 		if (showCollider){
@@ -552,6 +593,7 @@ void GameContent::OnEnd(EngineContext& engine)
 	playerActor = nullptr;
 	playerActorRun = nullptr;
 	enemyActor = nullptr;
+	enemyActorWalk = nullptr;
 
 	auto& d2d = engine.GetD2DManager();
 	d2d.RemoveRenderTarget(overlayRenderTargetId);
@@ -664,17 +706,27 @@ void GameContent::SpawnEnemyOrange(EngineContext& engine)
 	);
 
 	orange.actor->AddBoxCollider(
-		10.0f,
-		10.0f,
-		orangeWidth - 20.0f,
-		orangeHeight - 20.0f
+		5.0f,
+		5.0f,
+		orangeWidth - 10.0f,
+		orangeHeight - 10.0f
 	);
 
 	orange.startX = startX;
 	orange.startY = startY;
 
-	targetX += static_cast<float>((rand() % 121) - 60);
-	targetY += static_cast<float>((rand() % 81) - 40);
+	// 30% 확률로 플레이어 이동 방향 예측
+	if (rand() % 10 < 3)
+	{
+		float predictTime = 0.6f; // 몇 초 앞을 예측할지
+		targetX += playerVelX * predictTime;
+		targetY += playerVelY * predictTime;
+	}
+	else
+	{
+		targetX += static_cast<float>((rand() % 121) - 60);
+		targetY += static_cast<float>((rand() % 81) - 40);
+	}
 	orange.targetX = targetX;
 	orange.targetY = targetY;
 	orange.arcHeight = static_cast<float>((rand() % 151) + 120);
@@ -894,4 +946,70 @@ void GameContent::CenterEnemyActor(EngineContext& engine, float deltaTime)
     {
         enemyActor->Move(dx / dist * move, dy / dist * move);
     }
+}
+
+void GameContent::UpdateEnemyExplore(EngineContext& engine, float deltaTime)
+{
+    auto& windows = engine.GetWindowManager();
+
+    auto* fieldWnd  = windows.GetWindowById(enemy.GetEnemyFieldId());
+    auto* regionWnd = windows.GetWindowById(enemy.GetEnemyRegionId());
+    if (fieldWnd == nullptr || regionWnd == nullptr) return;
+
+    // 픽셀 단위 위치/크기
+    RECT fieldRect{};
+    GetWindowRect(fieldWnd->GetHwnd(), &fieldRect);
+
+    float regionX = regionWnd->GetX();
+    float regionY = regionWnd->GetY();
+    float regionW = regionWnd->GetWidth();
+    float regionH = regionWnd->GetHeight();
+
+    // 이동
+    float nextX = regionX + enemyRegionVelX * deltaTime;
+    float nextY = regionY + enemyRegionVelY * deltaTime;
+
+    // 좌우 경계 반사
+    if (nextX < fieldRect.left)
+    {
+        nextX = static_cast<float>(fieldRect.left);
+        enemyRegionVelX = fabsf(enemyRegionVelX); // 오른쪽으로
+        if (enemyActorWalk) enemyActorWalk->SetFlipx(true);
+    }
+    else if (nextX + regionW > fieldRect.right)
+    {
+        nextX = static_cast<float>(fieldRect.right) - regionW;
+        enemyRegionVelX = -fabsf(enemyRegionVelX); // 왼쪽으로
+        if (enemyActorWalk) enemyActorWalk->SetFlipx(false);
+    }
+
+    // 상하 경계 반사
+    if (nextY < fieldRect.top)
+    {
+        nextY = static_cast<float>(fieldRect.top);
+        enemyRegionVelY = fabsf(enemyRegionVelY);
+    }
+    else if (nextY + regionH > fieldRect.bottom)
+    {
+        nextY = static_cast<float>(fieldRect.bottom) - regionH;
+        enemyRegionVelY = -fabsf(enemyRegionVelY);
+    }
+
+    // 모니터 비율로 변환 후 이동
+    HMONITOR hMon = MonitorFromWindow(regionWnd->GetHwnd(), MONITOR_DEFAULTTONEAREST);
+    MONITORINFO mi = {};
+    mi.cbSize = sizeof(MONITORINFO);
+    if (!GetMonitorInfo(hMon, &mi)) return;
+
+    int workW = mi.rcWork.right  - mi.rcWork.left;
+    int workH = mi.rcWork.bottom - mi.rcWork.top;
+
+    float xRatio = (nextX + regionW / 2.0f) / workW;
+    float yRatio = (nextY + regionH / 2.0f) / workH;
+
+    regionWnd->ResizeWindowToMonitorRatio(regionWnd->GetHwnd(), 0.1f, 0.15f, xRatio, yRatio);
+
+    // walk 액터 위치 동기화
+    if (enemyActorWalk)
+        enemyActorWalk->SetPosition(enemyActorWalk->GetTransform().x, enemyActorWalk->GetTransform().y);
 }

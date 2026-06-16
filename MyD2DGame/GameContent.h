@@ -33,7 +33,7 @@ private:
 		float targetY = 0.0f;
 
 		float elapsed = 0.0f; //날아간 시간
-		float duration = 1.0f; // 총 비행 시간
+		float duration = 0.5f; // 총 비행 시간
 
 		float arcHeight = 180.0f; // 포물선 높이
 		bool falling = false;
@@ -52,7 +52,7 @@ private:
 	struct PlayerSpear // 플레이어 창 구조체
 	{
 		std::unique_ptr<Actor> actor;
-		float speed = 600.0f;
+		float speed = 300.0f;
 		bool hasHitEnemyField = false;
 	};
 	std::vector<PlayerSpear> spears;
@@ -71,6 +71,7 @@ private:
 
 	
 	float battleExpandT = 0.0f; // Battle field expansion timer (0~1)
+	float battleTimer = 0.0f;  // 배틀 제한 시간 (초)
 	// Battle Field height interpolation use
 	float battleExpandSpeed = 1.0f; // battle field expansion speed
 	//1.0f second -> (0~1) 
@@ -106,9 +107,19 @@ private:
 	float enemyBattleStartX = 0.0f;
 	float enemyBattleStartY = 0.0f;
 	Actor* enemyActor = nullptr;
+	Actor* enemyActorWalk = nullptr;
 	void CenterEnemyActor(EngineContext& engine, float deltaTime);
+	void UpdateEnemyExplore(EngineContext& engine, float deltaTime);
 	float prevEnemyClientY = -1.0f;
 	float prevEnemyClientX = -1.0f;
+
+	float enemyRegionVelX = 0.0f; // 적 region 이동 속도 X (픽셀/초)
+	float enemyRegionVelY = 0.0f; // 적 region 이동 속도 Y (픽셀/초)
+
+	float prevPlayerOverlayX = -1.0f; // 이전 프레임 플레이어 오버레이 X
+	float prevPlayerOverlayY = -1.0f; // 이전 프레임 플레이어 오버레이 Y
+	float playerVelX = 0.0f; // 플레이어 이동 속도 추정 X
+	float playerVelY = 0.0f; // 플레이어 이동 속도 추정 Y
 
 
 	// 멤버 변수

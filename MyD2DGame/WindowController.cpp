@@ -283,7 +283,7 @@ void WindowController::MoveToward(int windowId, float targetX, float targetY, fl
 
 void WindowController::BattleFieldSystem(float deltaTime)
 {
-    fieldBoundary += 0.01f * deltaTime;
+    fieldBoundary += 0.02f * deltaTime;
     if (fieldBoundary > 1.0f) fieldBoundary = 1.0f;
     ResizePlayerField(fieldBoundary);
     ResizeEnemyField(fieldBoundary);
@@ -293,7 +293,7 @@ void WindowController::BattleFieldSystem(float deltaTime)
 
 void WindowController::PushField(float deltaTime)
 {
-    fieldBoundary -= 0.5f * deltaTime;
+    fieldBoundary -= 0.1f * deltaTime;
     if (fieldBoundary < 0.0f) fieldBoundary = 0.0f;
     ResizePlayerField(fieldBoundary);
     ResizeEnemyField(fieldBoundary);
@@ -357,7 +357,7 @@ void WindowController::ApplyFieldPenaltyOnly(float amount)
 
 void WindowController::DefaultFieldSystem(float deltaTime)
 {
-    fieldBoundary += 0.0025f * deltaTime; // 속도 조절
+    fieldBoundary += 0.005f * deltaTime; // 속도 조절
     if (fieldBoundary > 1.0f) fieldBoundary = 1.0f;
     ResizePlayerField(fieldBoundary);
     ResizeEnemyField(fieldBoundary);
@@ -429,15 +429,10 @@ void WindowController::ClampRegionsToField()
         float regionWidth = enemyRegionWnd->GetWidth();
         float regionHeight = enemyRegionWnd->GetHeight();
 
-        // 초기 Y 저장 (처음 한 번만)
-        if (enemyRegionInitialY < 0.0f)
-            enemyRegionInitialY = regionY;
-
-        // field 하단 기준으로 region이 딱 붙을 Y
-        float desiredY = fieldBottom - regionHeight;
-
-        // field가 줄어들면 따라 올라가고, 커지면 따라 내려오되 초기 위치에서 멈춤
-        float clampedY = (desiredY < enemyRegionInitialY) ? desiredY : enemyRegionInitialY;
+        // field 하단이 region 하단을 침범할 때만 위로 밀기
+        float clampedY = regionY;
+        if (regionY + regionHeight > fieldBottom)
+            clampedY = fieldBottom - regionHeight;
 
         if (clampedY != regionY)
         {
