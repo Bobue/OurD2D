@@ -80,13 +80,28 @@ void GameContent::OnStart(EngineContext& engine)
 	playerRun->AddAnimation(L"run", 666, 375, 20, 20, 15.0f);
 	playerRun->PlayAnimation(L"run");
 
+	// 도로롱 걷기 액터 (Explore 전용)
+	auto enemyActorWalkPtr = std::make_unique<Actor>(overlayRenderTargetId);
+	enemyActorWalkPtr->SetAnchorWindowId(enemy.GetEnemyRegionId());
+	enemyActorWalkPtr->InitializeSprite(engine, L"../Resource/도로롱_걷기.png", 40.0f, 0.0f, 130.0f, 130.0f);
+	enemyActorWalkPtr->AddAnimation(L"도로롱_걷기", 177, 206, 8, 8, 15.0f);
+	enemyActorWalkPtr->PlayAnimation(L"도로롱_걷기");
+
 	this->playerActor = playerIdle.get();
 	this->playerActorRun = playerRun.get();
-	this->enemyActor = enemyActor.get(); // 추가
+	this->enemyActor = enemyActor.get();
+	this->enemyActorWalk = enemyActorWalkPtr.get();
+
+	// 초기 이동 방향 랜덤 대각선 (4대각선 중 하나)
+	float speedX = 150.0f, speedY = 300.0f;
+	enemyRegionVelX = (rand() % 2 == 0) ?  speedX : -speedX;
+	enemyRegionVelY = (rand() % 2 == 0) ?  speedY : -speedY;
+	if (enemyActorWalk) enemyActorWalk->SetFlipx(enemyRegionVelX > 0.0f);
 
 	actors.push_back(std::move(playerIdle));
 	actors.push_back(std::move(playerRun));
 	actors.push_back(std::move(enemyActor));
+	actors.push_back(std::move(enemyActorWalkPtr));
 
 
 	//스폰 매니저
@@ -103,7 +118,7 @@ void GameContent::OnStart(EngineContext& engine)
 	d2d.CreateRenderTargetForWindow(player.GetPlayerFieldId(), playerFieldWnd->GetHwnd());
 	d2d.CreateRenderTargetForWindow(enemy.GetEnemyFieldId(), enemyFieldWnd->GetHwnd());
 
-	if (!audiomanger.PlayBGM(L"C:\\Users\\User\\source\\repos\\OurD2D\\Resource\\평시.wav"))
+	if (!audiomanger.PlayBGM(L"../Resource/평시.wav"))
 	{
 		MessageBoxW(nullptr, L"BGM 재생 실패", L"Audio Error", MB_OK);
 	}
@@ -128,6 +143,35 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 
 		player.DefaultFieldSystem(deltaTime);
 		enemy.DefaultFieldSystem(deltaTime);
+		UpdateEnemyExplore(engine, deltaTime);
+
+		// 플레이어 이동 속도 추정
+		if (playerActor != nullptr)
+		{
+			auto& windows = engine.GetWindowManager();
+			auto* anchor = windows.GetWindowById(player.GetPlayerRegionId());
+			if (anchor != nullptr)
+			{
+				float curX = anchor->GetClientX() + playerActor->GetTransform().x;
+				float curY = anchor->GetClientY() + playerActor->GetTransform().y;
+				if (prevPlayerOverlayX >= 0.0f)
+				{
+					playerVelX = (curX - prevPlayerOverlayX) / deltaTime;
+					playerVelY = (curY - prevPlayerOverlayY) / deltaTime;
+				}
+				prevPlayerOverlayX = curX;
+				prevPlayerOverlayY = curY;
+			}
+		}
+
+		enemyAttackTimer -= deltaTime;
+		if (enemyAttackTimer <= 0.0f)
+		{
+			SpawnEnemyOrange(engine);
+			enemyAttackTimer = 0.15f + static_cast<float>(rand()) / RAND_MAX * 0.2f;
+		}
+
+		UpdateEnemyOranges(engine, deltaTime);
 
 		//audiomanger.PlayBGM(L"../Resource/평시.wav");
 		//스폰업데이트
@@ -136,6 +180,7 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 		if (spawnButtonManager.IsPlayerTouchingButton(*playerActor, engine.GetWindowManager()) && input.IsKeyPressed(player.GetPlayerRegionId(), 'E'))
 		{
 			spawnButtonManager.Clear();
+			oranges.clear();
 
 			battleStartX = playerActor->GetTransform().x;
 			battleStartY = playerActor->GetTransform().y;
@@ -151,6 +196,7 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 		if (input.IsKeyPressed(player.GetPlayerRegionId(), VK_RETURN))
 		{
 			spawnButtonManager.Clear();
+			oranges.clear();
 
 			battleStartX = playerActor->GetTransform().x;
 			battleStartY = playerActor->GetTransform().y;
@@ -161,13 +207,21 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 			state = BattleState::MoveToBattle;
 		}
 
-		
+		// EnemyWin 조건: player field가 player region보다 같거나 작아질 때
+		if (player.IsPlayerFieldSmallerThanRegion())
+		{
+			spawnButtonManager.Clear();
+			oranges.clear();
+			player.DestroyPlayerFieldAndRegion(engine);
+			enemy.ExpandEnemyWindowsFull();
+			state = BattleState::EnemyWin;
+		}
 
 		break;
 
 	case BattleState::MoveToBattle:
 
-		audiomanger.PlayBGM(L"C:\\Users\\User\\source\\repos\\OurD2D\\Resource\\줄다리기.wav");
+		audiomanger.PlayBGM(L"../Resource/줄다리기.wav");
 		// player, enemy move to battle region
 		player.BattleRegion(deltaTime, enemy.GetEnemyRegionId());
 		// battle region arrived -> Change Expand Battle (BattleState)
@@ -186,6 +240,8 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 			player.CreateBattleField();
 			battleFieldCreated = true;
 		}
+
+		CenterEnemyActor(engine, deltaTime);
 
 		battleExpandT += battleExpandSpeed * deltaTime;
 		if (battleExpandT > 1.0f) battleExpandT = 1.0f;
@@ -221,9 +277,11 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 			// 2. Region battle 크기로 resize
 			player.ResizeRegionsForBattle();
 
-			// 3. Resize 후 기존 actor들은 화면 위치 유지되도록 보정
+			// 3. Resize 후 기존 actor들은 화면 위치 유지되도록 보정 (enemyActor 제외 - CenterEnemyActor가 처리)
 			for (int i = 0; i < (int)actors.size(); i++)
 			{
+				if (actors[i].get() == enemyActor) continue;
+
 				auto* anchorWnd = windows.GetWindowById(actors[i]->GetAnchorWindowId());
 				if (anchorWnd == nullptr) continue;
 
@@ -239,41 +297,55 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 
 			playerActorRun->SetPosition(battleStartX, battleStartY);
 
-			// 5. 도로롱은 enemy region 중앙으로 배치
-			auto* enemyWnd = windows.GetWindowById(enemy.GetEnemyRegionId());
-
-			if (enemyWnd != nullptr)
-			{
-				RECT rect{};
-				GetWindowRect(enemyWnd->GetHwnd(), &rect);
-
-				float borderX = enemyWnd->GetClientX() - enemyWnd->GetX();
-				float borderY = enemyWnd->GetClientY() - enemyWnd->GetY();
-
-				float wndWidth = static_cast<float>(rect.right - rect.left);
-				float wndHeight = static_cast<float>(rect.bottom - rect.top);
-
-				enemyActor->SetPosition(
-					(wndWidth - 100.0f) * 0.5f - borderX,
-					(wndHeight - 100.0f) * 0.5f - borderY
-				);
-
-				enemyBattleStartX = enemyActor->GetTransform().x;
-				enemyBattleStartY = enemyActor->GetTransform().y;
-			}
 
 			prevEnemyClientX = -1.0f;
 			prevEnemyClientY = -1.0f;
 
+			// 도로운전 초기화
+			ClearDrivingObjects();
+			battleElapsed    = 0.0f;
+			driveSpawnIndex  = 0;
+			battleOrangeTimer = battleOrangeInterval; // 바로 안 던지게 첫 간격만큼 대기
+
+			// Battle 진입 시 player region top Y 저장 (경고 위치 기준)
+			{
+				auto& wins = engine.GetWindowManager();
+				auto* overlay   = wins.GetOverlayWindow();
+				auto* playerWnd = wins.GetWindowById(player.GetPlayerRegionId());
+				if (overlay && playerWnd)
+					battlePlayerRegionY = playerWnd->GetY() - static_cast<float>(overlay->GetY());
+			}
+
+			battleTimer = 20.0f;
 			state = BattleState::Battle;
 		}
 
 		break;
 	}
 	case BattleState::Battle:
+	{
+		auto& windows = engine.GetWindowManager();
+		auto* enemyWnd = windows.GetWindowById(enemy.GetEnemyRegionId());
+
+		// 리사이즈 전 도로롱 절대 위치 저장
+		float enemyAbsX = 0.0f, enemyAbsY = 0.0f;
+		if (enemyWnd != nullptr)
+		{
+			enemyAbsX = enemyWnd->GetClientX() + enemyActor->GetTransform().x;
+			enemyAbsY = enemyWnd->GetClientY() + enemyActor->GetTransform().y;
+		}
 
 		player.BattleFieldSystem(deltaTime);
 		enemy.BattleFieldSystem(deltaTime);
+
+		// 리사이즈 후 절대 위치 복원
+		if (enemyWnd != nullptr)
+		{
+			enemyActor->SetPosition(
+				enemyAbsX - enemyWnd->GetClientX(),
+				enemyAbsY - enemyWnd->GetClientY()
+			);
+		}
 
 		CenterEnemyActor(engine, deltaTime);
 		MovePlayerActor(engine, deltaTime, 200.0f);
@@ -294,24 +366,72 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 		if (input.IsKeyPressed(player.GetPlayerRegionId(), 'X') && spearCooldown <= 0.0f)
 		{
 			SpawnPlayerSpear(engine);
-			spearCooldown = 0.5f;
+			spearCooldown = 10.0f;
 		}
 
 		UpdateEnemyOranges(engine, deltaTime);
 		UpdatePlayerSpears(engine, deltaTime);
 
-		if (input.IsKeyPressed(player.GetPlayerRegionId(), VK_BACK))
-		{
-			oranges.clear();
-			spears.clear();
+		battleElapsed += deltaTime;
 
-			returnRegionT = 1.0f;
-			returnFieldT = 1.0f;
-			regionShrinkFinished = false;
+		// Battle 귤 (간격 길고 데미지 큼)
+		battleOrangeTimer -= deltaTime;
+		if (battleOrangeTimer <= 0.0f)
+		{
+			SpawnEnemyOrange(engine);
+			battleOrangeTimer = battleOrangeInterval;
+		}
+		UpdateEnemyOranges(engine, deltaTime);
+
+		// 경고/차 스폰 타이밍: 차=2,5,8,11,12,14초 기준 0.3초 전 경고
+		static constexpr float warningTimes[6] = { 1.7f, 4.7f, 7.7f, 10.7f, 11.7f, 13.7f };
+		if (driveSpawnIndex < 6 && !drivingWarning.active && !drivingCar.active)
+		{
+			if (battleElapsed >= warningTimes[driveSpawnIndex])
+				SpawnDrivingWarning(engine);
+		}
+		if (drivingWarning.active)
+		{
+			drivingWarning.timer -= deltaTime;
+			if (drivingWarning.timer <= 0.0f)
+			{
+				drivingWarning.active = false;
+				SpawnDrivingCar(engine);
+				driveSpawnIndex++;
+			}
+		}
+		if (drivingCar.active)
+			UpdateDrivingCar(engine, deltaTime);
+
+		battleTimer -= deltaTime;
+
+		// 승패 조건 체크 (Return 애니메이션 후 창 처리)
+		if (player.IsPlayerFieldSmallerThanRegion())
+		{
+			playerFieldLost = true;
+			oranges.clear(); spears.clear(); ClearDrivingObjects();
+			returnRegionT = 1.0f; returnFieldT = 1.0f; regionShrinkFinished = false;
+			state = BattleState::ReturnCenter;
+			break;
+		}
+		if (enemy.IsEnemyFieldSmallerThanRegion())
+		{
+			enemyFieldLost = true;
+			oranges.clear(); spears.clear(); ClearDrivingObjects();
+			returnRegionT = 1.0f; returnFieldT = 1.0f; regionShrinkFinished = false;
+			state = BattleState::ReturnCenter;
+			break;
+		}
+
+		if (battleTimer <= 0.0f || input.IsKeyPressed(player.GetPlayerRegionId(), VK_BACK))
+		{
+			oranges.clear(); spears.clear(); ClearDrivingObjects();
+			returnRegionT = 1.0f; returnFieldT = 1.0f; regionShrinkFinished = false;
 			state = BattleState::ReturnCenter;
 		}
 
 		break;
+	}
 	case BattleState::ReturnCenter:
 	{
 
@@ -367,7 +487,7 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 
 	case BattleState::Return:
 	{
-		audiomanger.PlayBGM(L"C:\\Users\\User\\source\\repos\\OurD2D\\Resource\\평시.wav");
+		audiomanger.PlayBGM(L"../Resource/평시.wav");
 		battleExpandT -= battleExpandSpeed * deltaTime;
 		if (battleExpandT < 0.0f) battleExpandT = 0.0f;
 
@@ -449,13 +569,47 @@ void GameContent::OnUpdate(EngineContext& engine, float deltaTime)
 		if (player.BattleEndRegion(deltaTime, enemy.GetEnemyRegionId()))
 		{
 			battleExpandT = 0.0f;
-			state = BattleState::Explore;
+			enemy.ResetEnemyRegionClamp();
+
+			if (playerFieldLost)
+			{
+				playerFieldLost = false;
+				player.DestroyPlayerFieldAndRegion(engine);
+				enemy.ExpandEnemyWindowsFull();
+				state = BattleState::EnemyWin;
+			}
+			else if (enemyFieldLost)
+			{
+				enemyFieldLost = false;
+				enemy.DestroyEnemyFieldAndRegion(engine);
+				player.ExpandPlayerWindowsFull();
+				state = BattleState::PlayerWin;
+			}
+			else
+			{
+				state = BattleState::Explore;
+			}
 		}
 		break;
+
+	case BattleState::EnemyWin:
+		// enemy region/field만 남아서 Explore처럼 튕겨다님
+		UpdateEnemyExplore(engine, deltaTime);
+		break;
+
+	case BattleState::PlayerWin:
+		// player region/field만 남아서 플레이어 계속 조작 가능
+		// DefaultFieldSystem 호출 안 함 → field 크기 고정 (더 안 줄어듦)
+		player.MovePlayerRegion(deltaTime);
+		MovePlayerActor(engine, deltaTime, 50.0f);
+		break;
 	}
-	// actor update ( maybe delete ? )
+	// actor update
 	for (auto& actor : actors)
 	{
+		// EnemyWin: player 창이 없으므로 player 액터 업데이트 스킵
+		if (state == BattleState::EnemyWin &&
+			(actor.get() == playerActor || actor.get() == playerActorRun)) continue;
 		actor->Update(deltaTime);
 	}
 	
@@ -475,48 +629,76 @@ void GameContent::OnRender(EngineContext& engine)
 
 	d2d.BeginDraw(overlayRenderTargetId);
 	d2d.Clear(overlayRenderTargetId, D2D1::ColorF(0.0f,0.0f,0.0f,0.0f));
+	bool isExploreLike = (state == BattleState::Explore || state == BattleState::EnemyWin);
+	bool enemyWindowsAlive = (state != BattleState::PlayerWin);
+	bool playerWindowsAlive = (state != BattleState::EnemyWin);
+
 	for (auto& actor : actors)
 	{
 		if (actor.get() == playerActor || actor.get() == playerActorRun) continue;
+
+		bool isEnemyActor = (actor.get() == enemyActor || actor.get() == enemyActorWalk);
+		if (isEnemyActor && !enemyWindowsAlive) continue;
+
+		if (isExploreLike && actor.get() == enemyActor) continue;
+		if (!isExploreLike && actor.get() == enemyActorWalk) continue;
+
 		actor->RenderToOverlay(d2d, windows);
 
-		if (showCollider){
+		if (showCollider && playerWindowsAlive && enemyWindowsAlive)
 			actor->RenderColliderToOverlay(d2d, windows);
-		}
 	}
-	for (auto& orange : oranges)
-	{
-		auto& d2d = engine.GetD2DManager();
-		auto& windows = engine.GetWindowManager();
-		orange.actor->RenderToOverlay(d2d, windows);
-		if (showCollider)  // 오버레이 좌표 이용해서 따로 생성
-		{
-			D2D1_RECT_F rect =
-				orange.actor->GetBoxCollider().GetWorldRect(*orange.actor);
 
-			d2d.DrawRectangle(overlayRenderTargetId, rect);
-		}
-	}
-	for (auto& spear : spears)
+	if (playerWindowsAlive)
 	{
-		spear.actor->RenderToOverlay(d2d, windows);
+		for (auto& orange : oranges)
+		{
+			orange.actor->RenderToOverlay(d2d, windows);
+			if (showCollider)
+			{
+				D2D1_RECT_F rect = orange.actor->GetBoxCollider().GetWorldRect(*orange.actor);
+				d2d.DrawRectangle(overlayRenderTargetId, rect);
+			}
+		}
+		for (auto& spear : spears)
+		{
+			spear.actor->RenderToOverlay(d2d, windows);
+			if (showCollider)
+			{
+				D2D1_RECT_F rect = spear.actor->GetBoxCollider().GetWorldRect(*spear.actor);
+				d2d.DrawRectangle(overlayRenderTargetId, rect);
+			}
+		}
+
+		// player actor 렌더
+		if (isMoving)
+			playerActorRun->RenderToOverlay(d2d, windows);
+		else
+			playerActor->RenderToOverlay(d2d, windows);
+
 		if (showCollider)
+			playerActor->RenderColliderToOverlay(d2d, windows);
+
+		// 도로롱 경고 렌더
+		if (drivingWarning.active && drivingWarning.actor)
 		{
-			D2D1_RECT_F rect = spear.actor->GetBoxCollider().GetWorldRect(*spear.actor);
-			d2d.DrawRectangle(overlayRenderTargetId, rect);
+			drivingWarning.actor->RenderToOverlay(d2d, windows);
+			d2d.DrawRectangle(overlayRenderTargetId, drivingWarning.warnRect);
 		}
+
+		// 도로롱 차 렌더
+		if (drivingCar.active && drivingCar.actor)
+		{
+			drivingCar.actor->RenderToOverlay(d2d, windows);
+			if (showCollider)
+			{
+				D2D1_RECT_F r = drivingCar.actor->GetBoxCollider().GetWorldRect(*drivingCar.actor);
+				d2d.DrawRectangle(overlayRenderTargetId, r);
+			}
+		}
+
+		spawnButtonManager.Render(d2d, windows, showCollider);
 	}
-
-	// isMoving에 따라 하나만 렌더
-	if (isMoving)
-		playerActorRun->RenderToOverlay(d2d, windows);
-	else
-		playerActor->RenderToOverlay(d2d, windows);
-
-	if (showCollider) {
-		playerActor->RenderColliderToOverlay(d2d, windows);
-		}
-	spawnButtonManager.Render(d2d, windows, showCollider);
 	d2d.EndDraw(overlayRenderTargetId);
 
 	auto* overlay = windows.GetOverlayWindow();
@@ -526,13 +708,19 @@ void GameContent::OnRender(EngineContext& engine)
 	}
 	
 
-	d2d.BeginDraw(player.GetPlayerFieldId());
-	d2d.Clear(player.GetPlayerFieldId(), D2D1::ColorF(0.0f, 0.0f, 1.0f, 1.0f)); // blue
-	d2d.EndDraw(player.GetPlayerFieldId());
+	if (player.GetPlayerFieldId() != -1)
+	{
+		d2d.BeginDraw(player.GetPlayerFieldId());
+		d2d.Clear(player.GetPlayerFieldId(), D2D1::ColorF(0.0f, 0.0f, 1.0f, 1.0f)); // blue
+		d2d.EndDraw(player.GetPlayerFieldId());
+	}
 
-	d2d.BeginDraw(enemy.GetEnemyFieldId());
-	d2d.Clear(enemy.GetEnemyFieldId(), D2D1::ColorF(1.0f, 0.5f, 0.0f, 1.0f)); // orange
-	d2d.EndDraw(enemy.GetEnemyFieldId());
+	if (enemy.GetEnemyFieldId() != -1)
+	{
+		d2d.BeginDraw(enemy.GetEnemyFieldId());
+		d2d.Clear(enemy.GetEnemyFieldId(), D2D1::ColorF(1.0f, 0.5f, 0.0f, 1.0f)); // orange
+		d2d.EndDraw(enemy.GetEnemyFieldId());
+	}
 
 }
 
@@ -546,11 +734,14 @@ void GameContent::OnEnd(EngineContext& engine)
 	playerActor = nullptr;
 	playerActorRun = nullptr;
 	enemyActor = nullptr;
+	enemyActorWalk = nullptr;
 
 	auto& d2d = engine.GetD2DManager();
 	d2d.RemoveRenderTarget(overlayRenderTargetId);
-	d2d.RemoveRenderTarget(player.GetPlayerFieldId());
-	d2d.RemoveRenderTarget(enemy.GetEnemyFieldId());
+	if (player.GetPlayerFieldId() != -1)
+		d2d.RemoveRenderTarget(player.GetPlayerFieldId());
+	if (enemy.GetEnemyFieldId() != -1)
+		d2d.RemoveRenderTarget(enemy.GetEnemyFieldId());
 }
 
 void GameContent::UpdateEnemyOranges(EngineContext& engine, float deltaTime)
@@ -559,7 +750,8 @@ void GameContent::UpdateEnemyOranges(EngineContext& engine, float deltaTime)
 	{
 		if (orange.falling)
 		{
-			orange.actor->Move(0.0f, orange.fallSpeed * deltaTime);
+			orange.velY += 980.0f * deltaTime; // 중력
+			orange.actor->Move(orange.velX * deltaTime, orange.velY * deltaTime);
 			continue;
 		}
 
@@ -570,7 +762,11 @@ void GameContent::UpdateEnemyOranges(EngineContext& engine, float deltaTime)
 		if (t >= 1.0f)
 		{
 			orange.falling = true;
-			orange.actor->Move(0.0f, orange.fallSpeed * deltaTime);
+			// 포물선 끝 시점 속도를 이어받음
+			orange.velX = (orange.targetX - orange.startX) / orange.duration;
+			orange.velY = (orange.targetY - orange.startY) / orange.duration
+				+ orange.arcHeight * 3.141592f / orange.duration;
+			orange.actor->Move(orange.velX * deltaTime, orange.velY * deltaTime);
 			continue;
 		}
 
@@ -595,10 +791,28 @@ void GameContent::UpdateEnemyOranges(EngineContext& engine, float deltaTime)
 		{
 			orange.hasHitPlayer = true;
 
-			player.ApplyFieldPenalty(0.01f);
-			enemy.ApplyFieldPenalty(0.01f);
+			if (state == BattleState::Explore)
+			{
+				player.ApplyFieldPenaltyOnly(0.01f);
+				enemy.ApplyFieldPenaltyOnly(0.01f);
+			}
+			else
+			{
+				player.ApplyFieldPenalty(battleOrangeDamage);
+				enemy.ApplyFieldPenalty(battleOrangeDamage);
+			}
 		}
 	}
+
+	auto* overlay = engine.GetWindowManager().GetOverlayWindow();
+	float overlayHeight = overlay ? static_cast<float>(overlay->GetHeight()) : 9999.0f;
+
+	oranges.erase(
+		std::remove_if(oranges.begin(), oranges.end(), [overlayHeight](const EnemyOrange& o) {
+			return o.actor->GetTransform().y > overlayHeight;
+		}),
+		oranges.end()
+	);
 }
 
 void GameContent::SpawnEnemyOrange(EngineContext& engine)
@@ -635,17 +849,27 @@ void GameContent::SpawnEnemyOrange(EngineContext& engine)
 	);
 
 	orange.actor->AddBoxCollider(
-		10.0f,
-		10.0f,
-		orangeWidth - 20.0f,
-		orangeHeight - 20.0f
+		5.0f,
+		5.0f,
+		orangeWidth - 10.0f,
+		orangeHeight - 10.0f
 	);
 
 	orange.startX = startX;
 	orange.startY = startY;
 
-	targetX += static_cast<float>((rand() % 121) - 60);
-	targetY += static_cast<float>((rand() % 81) - 40);
+	// 30% 확률로 플레이어 이동 방향 예측
+	if (rand() % 10 < 3)
+	{
+		float predictTime = 0.6f; // 몇 초 앞을 예측할지
+		targetX += playerVelX * predictTime;
+		targetY += playerVelY * predictTime;
+	}
+	else
+	{
+		targetX += static_cast<float>((rand() % 121) - 60);
+		targetY += static_cast<float>((rand() % 81) - 40);
+	}
 	orange.targetX = targetX;
 	orange.targetY = targetY;
 	orange.arcHeight = static_cast<float>((rand() % 151) + 120);
@@ -864,5 +1088,172 @@ void GameContent::CenterEnemyActor(EngineContext& engine, float deltaTime)
     else
     {
         enemyActor->Move(dx / dist * move, dy / dist * move);
+    }
+}
+
+void GameContent::UpdateEnemyExplore(EngineContext& engine, float deltaTime)
+{
+    auto& windows = engine.GetWindowManager();
+
+    auto* fieldWnd  = windows.GetWindowById(enemy.GetEnemyFieldId());
+    auto* regionWnd = windows.GetWindowById(enemy.GetEnemyRegionId());
+    if (fieldWnd == nullptr || regionWnd == nullptr) return;
+
+    // 픽셀 단위 위치/크기
+    RECT fieldRect{};
+    GetWindowRect(fieldWnd->GetHwnd(), &fieldRect);
+
+    float regionX = regionWnd->GetX();
+    float regionY = regionWnd->GetY();
+    float regionW = regionWnd->GetWidth();
+    float regionH = regionWnd->GetHeight();
+
+    // 이동
+    float nextX = regionX + enemyRegionVelX * deltaTime;
+    float nextY = regionY + enemyRegionVelY * deltaTime;
+
+    // 좌우 경계 반사
+    if (nextX < fieldRect.left)
+    {
+        nextX = static_cast<float>(fieldRect.left);
+        enemyRegionVelX = fabsf(enemyRegionVelX); // 오른쪽으로
+        if (enemyActorWalk) enemyActorWalk->SetFlipx(true);
+    }
+    else if (nextX + regionW > fieldRect.right)
+    {
+        nextX = static_cast<float>(fieldRect.right) - regionW;
+        enemyRegionVelX = -fabsf(enemyRegionVelX); // 왼쪽으로
+        if (enemyActorWalk) enemyActorWalk->SetFlipx(false);
+    }
+
+    // 상하 경계 반사
+    if (nextY < fieldRect.top)
+    {
+        nextY = static_cast<float>(fieldRect.top);
+        enemyRegionVelY = fabsf(enemyRegionVelY);
+    }
+    else if (nextY + regionH > fieldRect.bottom)
+    {
+        nextY = static_cast<float>(fieldRect.bottom) - regionH;
+        enemyRegionVelY = -fabsf(enemyRegionVelY);
+    }
+
+    // 모니터 비율로 변환 후 이동
+    HMONITOR hMon = MonitorFromWindow(regionWnd->GetHwnd(), MONITOR_DEFAULTTONEAREST);
+    MONITORINFO mi = {};
+    mi.cbSize = sizeof(MONITORINFO);
+    if (!GetMonitorInfo(hMon, &mi)) return;
+
+    int workW = mi.rcWork.right  - mi.rcWork.left;
+    int workH = mi.rcWork.bottom - mi.rcWork.top;
+
+    float xRatio = (nextX + regionW / 2.0f) / workW;
+    float yRatio = (nextY + regionH / 2.0f) / workH;
+
+    regionWnd->ResizeWindowToMonitorRatio(regionWnd->GetHwnd(), 0.1f, 0.15f, xRatio, yRatio);
+
+    // walk 액터 위치 동기화
+    if (enemyActorWalk)
+        enemyActorWalk->SetPosition(enemyActorWalk->GetTransform().x, enemyActorWalk->GetTransform().y);
+}
+
+void GameContent::SpawnDrivingWarning(EngineContext& engine)
+{
+    auto& windows = engine.GetWindowManager();
+    auto* overlay      = windows.GetOverlayWindow();
+    auto* battleWnd    = windows.GetWindowById(player.GetBattleFieldId());
+    if (!overlay || !battleWnd) return;
+
+    float ovX = static_cast<float>(overlay->GetX());
+    float ovY = static_cast<float>(overlay->GetY());
+
+    float bfLeft   = battleWnd->GetClientX() - ovX;
+    float bfRight  = bfLeft + battleWnd->GetWidth();
+    float bfBottom = battleWnd->GetClientY() - ovY + battleWnd->GetHeight();
+
+    // 플레이어 overlay X 기준 +-200 범위 내 랜덤, battlefield 안으로 클램핑
+    D2D1_RECT_F playerRect = playerActor->GetColliderOverlayRect(windows);
+    float playerCenterX = (playerRect.left + playerRect.right) * 0.5f - carW * 0.5f;
+    float offset = static_cast<float>((rand() % 161) - 80); // -80 ~ +80
+    float spawnX = playerCenterX + offset;
+    spawnX = max(bfLeft, min(spawnX, bfRight - carW));
+    drivingWarning.carSpawnX = spawnX;
+
+    // 경고 이미지: player region top Y (battle 진입 시 저장)
+    float warnY = battlePlayerRegionY;
+
+    // 경고 사각형: battlefield bottom 조금 위 ~ 경고 이미지 조금 위
+    drivingWarning.warnRect = D2D1::RectF(
+        spawnX,
+        warnY - 5.0f,
+        spawnX + carW,
+        bfBottom - 5.0f
+    );
+
+    // 경고 스프라이트 생성
+    drivingWarning.actor = std::make_unique<Actor>(overlayRenderTargetId);
+    drivingWarning.actor->InitializeSprite(engine,
+        L"../Resource/도로롱위험위험해.png",
+        spawnX, warnY, carW, warnH);
+
+    drivingWarning.timer  = 0.3f;
+    drivingWarning.active = true;
+}
+
+void GameContent::SpawnDrivingCar(EngineContext& engine)
+{
+    auto& windows  = engine.GetWindowManager();
+    auto* overlay  = windows.GetOverlayWindow();
+    auto* battleWnd = windows.GetWindowById(player.GetBattleFieldId());
+    if (!overlay || !battleWnd) return;
+
+    float ovY    = static_cast<float>(overlay->GetY());
+    float bfBottom = battleWnd->GetClientY() - ovY + battleWnd->GetHeight();
+
+    drivingCar.actor = std::make_unique<Actor>(overlayRenderTargetId);
+    drivingCar.actor->InitializeSprite(engine,
+        L"../Resource/도로롱도로운전.png",
+        drivingWarning.carSpawnX, bfBottom, carW, carH);
+    drivingCar.actor->AddBoxCollider(0.0f, 0.0f, carW, carH);
+    drivingCar.active = true;
+}
+
+void GameContent::UpdateDrivingCar(EngineContext& engine, float deltaTime)
+{
+    if (!drivingCar.actor) return;
+
+    auto& windows  = engine.GetWindowManager();
+    auto* overlay  = windows.GetOverlayWindow();
+
+    // 위쪽으로 이동
+    drivingCar.actor->Move(0.0f, -drivingCar.speed * deltaTime);
+
+    // 플레이어 충돌 체크
+    D2D1_RECT_F carRect    = drivingCar.actor->GetBoxCollider().GetWorldRect(*drivingCar.actor);
+    D2D1_RECT_F playerRect = playerActor->GetColliderOverlayRect(windows);
+
+    bool hit = carRect.left   < playerRect.right  &&
+               carRect.right  > playerRect.left   &&
+               carRect.top    < playerRect.bottom &&
+               carRect.bottom > playerRect.top;
+
+    if (hit)
+    {
+        player.ApplyFieldPenalty(0.07f);
+        enemy.ApplyFieldPenalty(0.07f);
+        ClearDrivingObjects();
+        return;
+    }
+
+    // enemy field 상단 위로 벗어나면 소멸
+    auto* enemyFieldWnd = windows.GetWindowById(enemy.GetEnemyFieldId());
+    if (overlay && enemyFieldWnd)
+    {
+        float enemyFieldTop = enemyFieldWnd->GetClientY() - static_cast<float>(overlay->GetY());
+        if (carRect.bottom < enemyFieldTop)
+        {
+            drivingCar.active  = false;
+            drivingCar.actor   = nullptr;
+        }
     }
 }

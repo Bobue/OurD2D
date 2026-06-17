@@ -23,9 +23,9 @@ public:
 	void ResizeBattleField(float heightRatio); // resize
 	void DestroyBattleField(); // destroy (Not Maked)
 
-	// Battle Field Stat -> Àû, ÇÃ·¹ÀÌ¾î region Ã¢ resize
+	// Battle Field Stat -> ï¿½ï¿½, ï¿½Ã·ï¿½ï¿½Ì¾ï¿½ region Ã¢ resize
 	void ResizeRegionsForBattle();
-	// ÀüÅõ ÈÄ º¹±¸ÇÏ´Â Ã¢
+	// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½ Ã¢
 	void RestoreRegionsFromBattle();
 
 
@@ -53,13 +53,29 @@ public:
 	// Default Field (Enemy field size up, player size down)
 	void DefaultFieldSystem(float deltaTime);
 	void ClampRegionsToField();
+	void ResetEnemyRegionClamp() { }
 
 	void BattleFieldSystem(float deltaTime);
 	void PushField(float deltaTime);
 	void ResizeRegionsForBattleField(float boundary);
 
-	// ±Ö¿¡ ¸Â¾ÒÀ»°æ¿ì Ã¼·Â ÁÙ°Ô ÇÏ±â
+	// ï¿½Ö¿ï¿½ ï¿½Â¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Ã¼ï¿½ï¿½ ï¿½Ù°ï¿½ ï¿½Ï±ï¿½
 	void ApplyFieldPenalty(float amount);
+	void ApplyFieldPenaltyOnly(float amount); // region ìœ„ì¹˜ ë³€ê²½ ì—†ì´ fieldë§Œ ì¡°ì •
+
+	// EnemyWin ì¡°ê±´: player field ë†’ì´ < player region ë†’ì´
+	bool IsPlayerFieldSmallerThanRegion() const;
+	// PlayerWin ì¡°ê±´: enemy field ë†’ì´ < enemy region ë†’ì´
+	bool IsEnemyFieldSmallerThanRegion() const;
+	// Battle ì‹œì‘ ì‹œ fieldBoundary ë¦¬ì…‹ (0.5 = ë™ì¼ í¬ê¸°ë¡œ ì‹œì‘)
+	void ResetFieldBoundary() { fieldBoundary = 0.5f; }
+	// ì°½ íŒŒê´´
+	void DestroyPlayerFieldAndRegion(EngineContext& engine);
+	void DestroyEnemyFieldAndRegion(EngineContext& engine);
+	// ì „ì²´í™”ë©´ í™•ì¥
+	void ExpandEnemyWindowsFull();
+	void ExpandPlayerWindowsFull();
+
 private :
 	// windowId -> targetX,targetY -> speed Move function (windowId -> wnd -> move)
 	void MoveToward(int wndId, float targetX, float targetY, float speed, float deltaTime);
@@ -89,6 +105,7 @@ protected:
 	// field width ratio(0~1) 
 
 	
-	float fieldBoundary = 0.50f;  // °æ°è¼± Y ºñÀ² (0~1), ÀÌ ÇÏ³ª·Î µÎ ÇÊµå Å©±â °áÁ¤
+	float fieldBoundary = 0.50f;  // ï¿½ï¿½è¼± Y ï¿½ï¿½ï¿½ï¿½ (0~1), ï¿½ï¿½ ï¿½Ï³ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Êµï¿½ Å©ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+
 
 };

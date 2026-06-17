@@ -34,11 +34,13 @@ private:
 		float targetY = 0.0f;
 
 		float elapsed = 0.0f; //날아간 시간
-		float duration = 1.0f; // 총 비행 시간
+		float duration = 1.2f; // 총 비행 시간
 
 		float arcHeight = 180.0f; // 포물선 높이
 		bool falling = false;
 		float fallSpeed = 400.0f;
+		float velX = 0.0f; // 포물선 종료 시점 속도
+		float velY = 0.0f;
 		bool hasHitPlayer = false; // 맞았느지 체크용
 	};
 	std::vector<EnemyOrange> oranges;
@@ -46,12 +48,16 @@ private:
 
 	float enemyAttackTimer = 0.0f;
 	float enemyAttackInterval = 1.5f;
+
+	float battleOrangeTimer = 0.0f;
+	static constexpr float battleOrangeInterval = 2.5f; // Battle 귤 간격
+	static constexpr float battleOrangeDamage   = 0.06f; // Battle 귤 데미지
 	void SpawnEnemyOrange(EngineContext& engine);
 
 	struct PlayerSpear // 플레이어 창 구조체
 	{
 		std::unique_ptr<Actor> actor;
-		float speed = 600.0f;
+		float speed = 300.0f;
 		bool hasHitEnemyField = false;
 	};
 	std::vector<PlayerSpear> spears;
@@ -70,6 +76,7 @@ private:
 
 	
 	float battleExpandT = 0.0f; // Battle field expansion timer (0~1)
+	float battleTimer = 0.0f;  // 배틀 제한 시간 (초)
 	// Battle Field height interpolation use
 	float battleExpandSpeed = 1.0f; // battle field expansion speed
 	//1.0f second -> (0~1) 
@@ -108,13 +115,62 @@ private:
 	float enemyBattleStartX = 0.0f;
 	float enemyBattleStartY = 0.0f;
 	Actor* enemyActor = nullptr;
+	Actor* enemyActorWalk = nullptr;
 	void CenterEnemyActor(EngineContext& engine, float deltaTime);
+	void UpdateEnemyExplore(EngineContext& engine, float deltaTime);
 	float prevEnemyClientY = -1.0f;
 	float prevEnemyClientX = -1.0f;
+
+	float enemyRegionVelX = 0.0f; // 적 region 이동 속도 X (픽셀/초)
+	float enemyRegionVelY = 0.0f; // 적 region 이동 속도 Y (픽셀/초)
+
+	float prevPlayerOverlayX = -1.0f; // 이전 프레임 플레이어 오버레이 X
+	float prevPlayerOverlayY = -1.0f; // 이전 프레임 플레이어 오버레이 Y
+	float playerVelX = 0.0f; // 플레이어 이동 속도 추정 X
+	float playerVelY = 0.0f; // 플레이어 이동 속도 추정 Y
 
 
 	// 멤버 변수
 	float returnRegionT = 1.0f;
 	float returnFieldT = 1.0f;
 	bool regionShrinkFinished = false;
+
+	// Battle 승패 플래그 (Return 애니메이션 후 처리)
+	bool playerFieldLost = false;
+	bool enemyFieldLost = false;
+
+	// 도로롱 도로 운전 (battle 전용)
+	struct DrivingCar
+	{
+		std::unique_ptr<Actor> actor;
+		bool active = false;
+		float speed = 1600.0f;
+	};
+	struct DrivingWarning
+	{
+		std::unique_ptr<Actor> actor; // 도로롱위험위험해 스프라이트
+		bool  active = false;
+		float timer = 0.0f;          // 차 등장까지 남은 시간
+		float carSpawnX = 0.0f;      // 차가 나올 overlay X
+		D2D1_RECT_F warnRect = {};   // 경고 사각형 (overlay 좌표)
+	};
+
+	DrivingCar    drivingCar;
+	DrivingWarning drivingWarning;
+	float battleElapsed   = 0.0f;
+	int   driveSpawnIndex = 0;
+	float battlePlayerRegionY = 0.0f; // Battle 진입 시 player region top Y (overlay)
+
+	static constexpr float carW = 130.0f;
+	static constexpr float carH = 100.0f;
+	static constexpr float warnH = 80.0f;
+
+	void SpawnDrivingWarning(EngineContext& engine);
+	void SpawnDrivingCar(EngineContext& engine);
+	void UpdateDrivingCar(EngineContext& engine, float deltaTime);
+	void ClearDrivingObjects()
+	{
+		drivingCar.active = false;    drivingCar.actor    = nullptr;
+		drivingWarning.active = false; drivingWarning.actor = nullptr;
+	}
 };
