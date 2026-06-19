@@ -112,7 +112,7 @@ void GameContent::OnStart(EngineContext& engine)
 		L"../Resource/5090.png"
 	);
 	// 각각 Field채우기
-	auto* playerFieldWnd = windows.GetWindowById(player.GetPlayerFieldId());
+	auto* playerFieldWnd = windows.GetWindowById(player.GetPlayerFieldId()); 
 	auto* enemyFieldWnd = windows.GetWindowById(enemy.GetEnemyFieldId());
 
 	d2d.CreateRenderTargetForWindow(player.GetPlayerFieldId(), playerFieldWnd->GetHwnd());
