@@ -7,6 +7,7 @@
 #include "SpriteAnimation.h" // Sprite Animation 
 #include "SpawnButtonManager.h"
 #include "AudioManager.h"
+#include "Content/SceneManager.h"
 
 #include <d2d1.h> //D2D
 #include<wrl/client.h> // Comptr
@@ -24,6 +25,7 @@ public:
 
 
 private:
+
 	struct EnemyOrange // 도로롱 귤 구조체
 	{
 		std::unique_ptr<Actor> actor;
@@ -71,10 +73,11 @@ private:
 	WindowController enemy; // 적 컨트롤러(창) 객체
 
 
-	BattleState state = BattleState::Explore; // 배틀 상태
+	BattleState state = BattleState::Start; // 배틀 상태
+
+	void RestartToStart(EngineContext& engine);
 
 
-	
 	float battleExpandT = 0.0f; // Battle field expansion timer (0~1)
 	float battleTimer = 0.0f;  // 배틀 제한 시간 (초)
 	// Battle Field height interpolation use
@@ -89,8 +92,11 @@ private:
 	int overlayRenderTargetId = 0;
 
 	// 플레이어 리소스 움직이기
-	void MovePlayerActor(EngineContext& engine, float deltaTime, float moveSpeed);
-
+	void MovePlayerActor(EngineContext& engine, float deltaTime, float moveSpeed, bool allowDash = false);
+	bool playerDashActive = false;
+	float playerDashDirX = 0.0f;
+	float playerDashDirY = 0.0f;
+	float playerDashRemaining = 0.0f;
 	// Battle 종료 시 돌아올 위치 (마우가) 
 	float battleStartX = 0.0f;
 	float battleStartY = 0.0f;
@@ -128,6 +134,9 @@ private:
 	float prevPlayerOverlayY = -1.0f; // 이전 프레임 플레이어 오버레이 Y
 	float playerVelX = 0.0f; // 플레이어 이동 속도 추정 X
 	float playerVelY = 0.0f; // 플레이어 이동 속도 추정 Y
+
+	SceneManager sceneManager;
+	bool endingStarted = false;
 
 
 	// 멤버 변수
@@ -173,4 +182,26 @@ private:
 		drivingCar.active = false;    drivingCar.actor    = nullptr;
 		drivingWarning.active = false; drivingWarning.actor = nullptr;
 	}
+
+
+	std::unique_ptr<Actor> gameOverActor;
+	bool restartKeyWasDown = false;
+	void ShowGameOverImage(EngineContext& engine, bool playerWin);
+
+	//상태 함수들
+	void UpdateStart		(EngineContext& engine, float delatTime);
+	void UpdateExplore		(EngineContext& engine, float deltaTime);
+	void UpdateMoveToBattle (EngineContext& engine, float deltaTime);
+	void UpdateExpandBattle (EngineContext& engine, float deltaTime);
+	void UpdateBattle		(EngineContext& engine, float deltaTime);
+	void UpdateReturnCenter (EngineContext& engine, float deltaTime);
+	void UpdateReturn		(EngineContext& engine, float deltaTime);
+	void UpdateReturnExplore(EngineContext& engine, float deltaTime);
+	void UpdateEnemyWin		(EngineContext& engine, float deltaTime);
+	void UpdatePlayerWin	(EngineContext& engine, float deltaTime);
+
+	void UpdateActors(float deltaTime);
+
+	//컨텍스트
+	EngineContext* context = nullptr;
 };
